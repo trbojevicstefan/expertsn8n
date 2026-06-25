@@ -30,6 +30,31 @@
   }
 }
 </script>
+
+<style id="contact-modal-style">
+.contact-modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.contact-modal-overlay.active{display:flex}
+.contact-modal{background:linear-gradient(145deg,#1a1025,#0E0918);border:1px solid rgba(139,92,246,0.3);border-radius:20px;padding:2.5rem 2rem;max-width:480px;width:90%;position:relative;box-shadow:0 25px 80px rgba(0,0,0,0.6),0 0 60px rgba(139,92,246,0.1)}
+.contact-modal-close{position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:#888;font-size:1.5rem;cursor:pointer;transition:color 0.2s;line-height:1}
+.contact-modal-close:hover{color:#fff}
+.contact-modal h2{font-size:1.35rem;font-weight:800;color:#fff;margin-bottom:0.25rem;letter-spacing:-0.01em}
+.contact-modal .subtitle{color:#c4bbd3;font-size:0.85rem;margin-bottom:1.5rem}
+.contact-modal .form-group{margin-bottom:1rem}
+.contact-modal label{display:block;color:#c4bbd3;font-size:0.8rem;font-weight:600;margin-bottom:0.35rem;letter-spacing:0.01em}
+.contact-modal label .required{color:#ef4444}
+.contact-modal input,.contact-modal textarea{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#fff;font-size:0.9rem;font-family:'Inter',sans-serif;transition:border-color 0.2s,box-shadow 0.2s;outline:none;box-sizing:border-box}
+.contact-modal input:focus,.contact-modal textarea:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,0.15)}
+.contact-modal input::placeholder,.contact-modal textarea::placeholder{color:#555}
+.contact-modal textarea{resize:vertical;min-height:90px}
+.contact-modal .submit-btn{width:100%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;border:none;padding:14px;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;margin-top:0.5rem;letter-spacing:0.01em}
+.contact-modal .submit-btn:hover{transform:scale(1.02);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
+.contact-modal .submit-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+.contact-modal .error-msg{color:#ef4444;font-size:0.75rem;margin-top:0.25rem;display:none}
+.contact-modal .success-msg{display:none;text-align:center;padding:1.5rem 0;color:#34d399}
+.contact-modal .success-msg .check{font-size:3rem;margin-bottom:0.75rem}
+.contact-modal .success-msg p{color:#c4bbd3;font-size:0.9rem}
+</style>
+
 </head>
 <body>
 
@@ -79,22 +104,90 @@ Back to Directory
 <button onclick="submitContactForm()" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;box-shadow:0 4px 20px rgba(139,92,246,0.3);border:none;padding:16px 48px;border-radius:12px;font-size:1.1rem;font-weight:700;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">✉️ Contact #makeitfuture.</button>
 <p style="color:#888;font-size:0.85rem;margin-top:0.75rem">We'll connect you directly with #makeitfuture..</p>
 </div>
-<script>
-function submitContactForm() {
-  var webhookUrl = "https://services.leadconnectorhq.com/hooks/e9C9n0WZaLPe18AKT4fm/webhook-trigger/42ee4b80-fbda-4a24-8dff-467a192fdecf";
-  var partner = "#makeitfuture.";
-  var slug = "makeitfuture";
-  fetch(webhookUrl, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({partner:partner,slug:slug,timestamp:new Date().toISOString()})}).then(r=>r.json()).then(d=>alert("✅ Request sent! We'll connect you shortly.")).catch(e=>alert("Error: "+e));
-}
-</script>
+
 
 </div>
+
+<div class="contact-modal-overlay" id="contactModal">
+<div class="contact-modal">
+<button class="contact-modal-close" onclick="closeContactModal()">&times;</button>
+<h2>Get in Touch with #makeitfuture.</h2>
+<p class="subtitle">Tell us what automation you need — we'll connect you directly.</p>
+<form id="contactForm" onsubmit="handleContactSubmit(event)">
+<div class="form-group">
+<label>Full Name <span class="required">*</span></label>
+<input type="text" id="contactName" placeholder="John Doe" required>
+</div>
+<div class="form-group">
+<label>Email <span class="required">*</span></label>
+<input type="email" id="contactEmail" placeholder="john@company.com" required>
+</div>
+<div class="form-group">
+<label>Phone Number</label>
+<input type="tel" id="contactPhone" placeholder="+1 (555) 000-0000">
+</div>
+<div class="form-group">
+<label>What automation do you need? <span class="required">*</span></label>
+<textarea id="contactRequest" placeholder="I need help with... (e.g., connecting CRM to email, automating lead follow-ups, AI chatbot)" required></textarea>
+</div>
+<button type="submit" class="submit-btn" id="contactSubmitBtn">Send Request 🚀</button>
+</form>
+<div class="success-msg" id="contactSuccess">
+<div class="check">✅</div>
+<h2 style="color:#34d399">Request Sent!</h2>
+<p>We'll connect you with #makeitfuture. shortly. Expect a response within 24 hours.</p>
+</div>
+</div>
+</div>
+
 </section>
 
 <footer style="background:#0E0918;border-top:1px solid rgba(255,255,255,0.06);padding:2rem;text-align:center">
 <p style="color:#666;font-size:0.8rem"><a href="../index.html" style="color:#8b5cf6;text-decoration:underline">← Browse all partners</a></p>
 <p style="color:#555;font-size:0.75rem;margin-top:0.5rem">© 2026 n8n Partner Directory.</p>
 </footer>
+
+<script>
+function submitContactForm() {
+  document.getElementById('contactModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeContactModal() {
+  document.getElementById('contactModal').classList.remove('active');
+  document.body.style.overflow = '';
+  document.getElementById('contactForm').style.display = 'block';
+  document.getElementById('contactSuccess').style.display = 'none';
+}
+document.getElementById('contactModal').addEventListener('click', function(e) {
+  if (e.target === this) closeContactModal();
+});
+function handleContactSubmit(e) {
+  e.preventDefault();
+  var btn = document.getElementById('contactSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  var data = {
+    partner: "#makeitfuture.",
+    slug: "makeitfuture",
+    name: document.getElementById('contactName').value.trim(),
+    email: document.getElementById('contactEmail').value.trim(),
+    phone: document.getElementById('contactPhone').value.trim(),
+    request: document.getElementById('contactRequest').value.trim(),
+    timestamp: new Date().toISOString()
+  };
+  fetch("https://services.leadconnectorhq.com/hooks/e9C9n0WZaLPe18AKT4fm/webhook-trigger/42ee4b80-fbda-4a24-8dff-467a192fdecf", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      document.getElementById('contactForm').style.display = 'none';
+      document.getElementById('contactSuccess').style.display = 'block';
+    })
+    .catch(function(e){
+      alert("Error: " + e);
+      btn.disabled = false;
+      btn.textContent = 'Send Request 🚀';
+    });
+}
+</script>
 
 </body>
 </html>
