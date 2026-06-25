@@ -34,7 +34,7 @@
 <style id="contact-modal-style">
 .contact-modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
 .contact-modal-overlay.active{display:flex}
-.contact-modal{background:linear-gradient(145deg,#1a1025,#0E0918);border:1px solid rgba(139,92,246,0.3);border-radius:20px;padding:2.5rem 2rem;max-width:480px;width:90%;position:relative;box-shadow:0 25px 80px rgba(0,0,0,0.6),0 0 60px rgba(139,92,246,0.1)}
+.contact-modal{background:linear-gradient(145deg,#1a1025,#0E0918);border:1px solid rgba(139,92,246,0.3);border-radius:20px;padding:2.5rem 2rem;max-width:480px;width:90%;position:relative;box-shadow:0 25px 80px rgba(0,0,0,0.6),0 0 60px rgba(139,92,246,0.1);max-height:90vh;overflow-y:auto}
 .contact-modal-close{position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:#888;font-size:1.5rem;cursor:pointer;transition:color 0.2s;line-height:1}
 .contact-modal-close:hover{color:#fff}
 .contact-modal h2{font-size:1.35rem;font-weight:800;color:#fff;margin-bottom:0.25rem;letter-spacing:-0.01em}
@@ -49,7 +49,6 @@
 .contact-modal .submit-btn{width:100%;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:white;border:none;padding:14px;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;margin-top:0.5rem;letter-spacing:0.01em}
 .contact-modal .submit-btn:hover{transform:scale(1.02);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
 .contact-modal .submit-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
-.contact-modal .error-msg{color:#ef4444;font-size:0.75rem;margin-top:0.25rem;display:none}
 .contact-modal .success-msg{display:none;text-align:center;padding:1.5rem 0;color:#34d399}
 .contact-modal .success-msg .check{font-size:3rem;margin-bottom:0.75rem}
 .contact-modal .success-msg p{color:#c4bbd3;font-size:0.9rem}
@@ -140,6 +139,17 @@ Back to Directory
 </footer>
 
 <script>
+function getUTMParams() {
+  var params = {};
+  var qs = window.location.search.substring(1);
+  if (!qs) return params;
+  qs.split('&').forEach(function(p) {
+    var kv = p.split('=');
+    var k = decodeURIComponent(kv[0]).toLowerCase();
+    if (k.indexOf('utm_') === 0) params[k] = decodeURIComponent(kv[1] || '');
+  });
+  return params;
+}
 function submitContactForm() {
   document.getElementById('contactModal').classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -158,6 +168,7 @@ function handleContactSubmit(e) {
   var btn = document.getElementById('contactSubmitBtn');
   btn.disabled = true;
   btn.textContent = 'Sending...';
+  var utm = getUTMParams();
   var data = {
     partner: "Forward.Deployed.Engineer",
     slug: "forwarddeployedengineer",
@@ -165,6 +176,18 @@ function handleContactSubmit(e) {
     email: document.getElementById('contactEmail').value.trim(),
     phone: document.getElementById('contactPhone').value.trim(),
     request: document.getElementById('contactRequest').value.trim(),
+    source_url: window.location.href,
+    source_page: document.title,
+    referrer: document.referrer || 'direct',
+    utm_source: utm.utm_source || '',
+    utm_medium: utm.utm_medium || '',
+    utm_campaign: utm.utm_campaign || '',
+    utm_term: utm.utm_term || '',
+    utm_content: utm.utm_content || '',
+    browser_language: navigator.language || '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    screen_resolution: window.screen.width + 'x' + window.screen.height,
+    user_agent: navigator.userAgent,
     timestamp: new Date().toISOString()
   };
   fetch("https://services.leadconnectorhq.com/hooks/e9C9n0WZaLPe18AKT4fm/webhook-trigger/42ee4b80-fbda-4a24-8dff-467a192fdecf", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
