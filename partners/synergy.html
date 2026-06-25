@@ -73,12 +73,10 @@ Back to Directory
 </div>
 <script>
 function submitContactForm() {
-  var webhookUrl = "WEBHOOK_URL_PLACEHOLDER";
+  var webhookUrl = "https://services.leadconnectorhq.com/hooks/e9C9n0WZaLPe18AKT4fm/webhook-trigger/42ee4b80-fbda-4a24-8dff-467a192fdecf";
   var partner = "SYNERGY";
   var slug = "synergy";
-  alert("📨 Contact request for " + partner + "\n\nWebhook integration ready.\nWill POST to: " + webhookUrl + "\n\nData: { partner, slug, timestamp }");
-  // Uncomment when webhook is ready:
-  // fetch(webhookUrl, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({partner:partner,slug:slug,timestamp:new Date().toISOString()})}).then(r=>r.json()).then(d=>alert("✅ Request sent!")).catch(e=>alert("Error: "+e));
+  fetch(webhookUrl, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({partner:partner,slug:slug,timestamp:new Date().toISOString()})}).then(r=>r.json()).then(d=>alert("✅ Request sent! We'll connect you shortly.")).catch(e=>alert("Error: "+e));
 }
 </script>
 
