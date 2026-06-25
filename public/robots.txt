@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://experts--n8nexperts-95208883-1324b.us-central1.hosted.app/sitemap.xml
+Sitemap: https://n8nexperts-95208883-1324b.web.app/sitemap.xml
