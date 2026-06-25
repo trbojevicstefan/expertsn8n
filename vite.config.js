@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
-import { readdirSync, existsSync } from 'fs';
+import { readdirSync, existsSync, copyFileSync } from 'fs';
 
 function getHtmlInputs() {
   const inputs = { main: resolve(__dirname, 'index.html') };
@@ -19,4 +19,15 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: { input: getHtmlInputs() },
   },
+  plugins: [{
+    name: 'copy-public',
+    closeBundle() {
+      const files = ['public/sitemap.xml', 'public/robots.txt'];
+      for (const f of files) {
+        if (existsSync(f)) {
+          copyFileSync(f, 'dist/' + f.replace('public/', ''));
+        }
+      }
+    }
+  }]
 });
