@@ -3,6 +3,7 @@
     {
       "backendId": "experts",
       "rootDir": "/",
+      "outputDirectory": "dist",
       "ignore": [
         "node_modules",
         ".git",
