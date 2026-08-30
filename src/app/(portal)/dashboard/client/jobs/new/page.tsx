@@ -1,0 +1,1 @@
+import { JobForm } from "@/components/job-form";export default function NewJob(){return <><div className="portal-head"><div><h1>Post a new job</h1><p>Choose public discovery or a private invite-only search.</p></div></div><JobForm/></>}

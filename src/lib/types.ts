@@ -1,0 +1,7 @@
+export type UserRole="expert"|"client"|"admin";
+export type VerificationState="DRAFT"|"SUBMITTED"|"UNDER_REVIEW"|"NEEDS_CHANGES"|"VERIFIED"|"PUBLISHED"|"REJECTED"|"SUSPENDED";
+export type JobVisibility="PUBLIC"|"PRIVATE";export type JobStatus="DRAFT"|"OPEN"|"MATCHING"|"FILLED"|"CLOSED";export type ProposalStatus="SUBMITTED"|"SHORTLISTED"|"OFFERED"|"ACCEPTED"|"DECLINED"|"WITHDRAWN";export type MilestoneStatus="DRAFT"|"AWAITING_FUNDING"|"FUNDED"|"IN_PROGRESS"|"SUBMITTED"|"CHANGES_REQUESTED"|"DISPUTED"|"RELEASE_PENDING"|"RELEASED"|"REFUND_PENDING"|"REFUNDED";
+export interface ExpertProfile{id:string;slug:string;name:string;title:string;bio:string;location:string;timezone:string;photoUrl:string;skills:string[];integrations:string[];hourlyRate:number;currency:string;availability:string;rating:number;reviewCount:number;completedProjects:number;verified:boolean;status:VerificationState;badges:string[];}
+export interface Showcase{id:string;expertId:string;title:string;summary:string;outcome:string;integrations:string[];complexity:"Intermediate"|"Advanced"|"Expert";}
+export interface MarketplaceJob{id:string;clientId:string;clientName:string;title:string;description:string;skills:string[];integrations:string[];visibility:JobVisibility;status:JobStatus;budgetMin:number;budgetMax:number;currency:string;delivery:string;proposalCount:number;postedAt:string;verifiedPayment:boolean;}
+export interface SessionUser{uid:string;email:string;name?:string;role:UserRole;admin?:boolean;}

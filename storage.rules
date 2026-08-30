@@ -1,0 +1,11 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn(){return request.auth != null;} function owner(uid){return signedIn() && request.auth.uid == uid;} function admin(){return signedIn() && request.auth.token.admin == true;}
+    match /private/experts/{uid}/cv/{fileName}{allow read:if owner(uid)||admin();allow write:if owner(uid)&&request.resource.size<10*1024*1024&&request.resource.contentType=='application/pdf';}
+    match /private/experts/{uid}/photo/{fileName}{allow read:if owner(uid)||admin();allow write:if owner(uid)&&request.resource.size<8*1024*1024&&request.resource.contentType.matches('image/(jpeg|png|webp)');}
+    match /private/experts/{uid}/workflow-staging/{fileName}{allow read:if owner(uid)||admin();allow write:if owner(uid)&&request.resource.size<10*1024*1024;}
+    match /public/{allPaths=**}{allow read:if true;allow write:if false;}
+    match /private/contracts/{allPaths=**}{allow read,write:if false;}
+  }
+}

@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() { return signedIn() && request.auth.token.admin == true; }
+
+    match /expertProfiles/{uid} {
+      allow read: if resource.data.status == 'PUBLISHED' || owner(uid) || admin();
+      allow write: if false;
+    }
+    match /expertShowcases/{showcaseId} {
+      allow read: if resource.data.reviewState == 'APPROVED';
+      allow write: if false;
+    }
+    match /jobs/{jobId} {
+      allow read: if resource.data.visibility == 'PUBLIC' && resource.data.status == 'OPEN';
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

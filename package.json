@@ -1,19 +1,30 @@
 {
-  "name": "expertsn8n",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "n8nexperts-marketplace",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": ">=22" },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "vite build",
-    "dev": "vite",
-    "start": "node server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "express": "^5.2.1",
-    "vite": "^8.1.0"
+    "firebase": "12.18.0",
+    "firebase-admin": "14.3.0",
+    "lucide-react": "1.37.0",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "10.9.1",
+    "eslint-config-next": "16.3.3",
+    "typescript": "7.0.2"
   }
 }

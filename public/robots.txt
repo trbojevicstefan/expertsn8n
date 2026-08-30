@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://n8nexperts-95208883-1324b.web.app/sitemap.xml
