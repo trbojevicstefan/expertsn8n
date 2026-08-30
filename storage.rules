@@ -1,11 +1,53 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function signedIn(){return request.auth != null;} function owner(uid){return signedIn() && request.auth.uid == uid;} function admin(){return signedIn() && request.auth.token.admin == true;}
-    match /private/experts/{uid}/cv/{fileName}{allow read:if owner(uid)||admin();allow write:if owner(uid)&&request.resource.size<10*1024*1024&&request.resource.contentType=='application/pdf';}
-    match /private/experts/{uid}/photo/{fileName}{allow read:if owner(uid)||admin();allow write:if owner(uid)&&request.resource.size<8*1024*1024&&request.resource.contentType.matches('image/(jpeg|png|webp)');}
-    match /private/experts/{uid}/workflow-staging/{fileName}{allow read:if owner(uid)||admin();allow write:if owner(uid)&&request.resource.size<10*1024*1024;}
-    match /public/{allPaths=**}{allow read:if true;allow write:if false;}
-    match /private/contracts/{allPaths=**}{allow read,write:if false;}
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() { return signedIn() && request.auth.token.admin == true; }
+
+    // CV stays private to the expert and reviewers. A public copy is never made.
+    match /private/experts/{uid}/cv/{fileName} {
+      allow read: if owner(uid) || admin();
+      allow write: if owner(uid)
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    // Photo is uploaded privately; only the server publishes a copy under public/.
+    match /private/experts/{uid}/photo/{fileName} {
+      allow read: if owner(uid) || admin();
+      allow write: if owner(uid)
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    // Supporting documents an expert attaches to their profile: CVs, portfolios,
+    // certificates and identity documents. Private to the expert and reviewers.
+    match /private/experts/{uid}/documents/{kind}/{fileName} {
+      allow read: if owner(uid) || admin();
+      allow write: if owner(uid)
+        && request.resource.size < 20 * 1024 * 1024
+        && (
+          request.resource.contentType == 'application/pdf'
+          || request.resource.contentType.matches('image/(jpeg|png|webp)')
+          || request.resource.contentType == 'application/msword'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
+    }
+
+    match /private/experts/{uid}/workflow-staging/{fileName} {
+      allow read: if owner(uid) || admin();
+      allow write: if owner(uid) && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Server-written only. Approved profile photos live here.
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /private/contracts/{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

@@ -1,7 +1,40 @@
 export type UserRole="expert"|"client"|"admin";
 export type VerificationState="DRAFT"|"SUBMITTED"|"UNDER_REVIEW"|"NEEDS_CHANGES"|"VERIFIED"|"PUBLISHED"|"REJECTED"|"SUSPENDED";
 export type JobVisibility="PUBLIC"|"PRIVATE";export type JobStatus="DRAFT"|"OPEN"|"MATCHING"|"FILLED"|"CLOSED";export type ProposalStatus="SUBMITTED"|"SHORTLISTED"|"OFFERED"|"ACCEPTED"|"DECLINED"|"WITHDRAWN";export type MilestoneStatus="DRAFT"|"AWAITING_FUNDING"|"FUNDED"|"IN_PROGRESS"|"SUBMITTED"|"CHANGES_REQUESTED"|"DISPUTED"|"RELEASE_PENDING"|"RELEASED"|"REFUND_PENDING"|"REFUNDED";
-export interface ExpertProfile{id:string;slug:string;name:string;title:string;bio:string;location:string;timezone:string;photoUrl:string;skills:string[];integrations:string[];hourlyRate:number;currency:string;availability:string;rating:number;reviewCount:number;completedProjects:number;verified:boolean;status:VerificationState;badges:string[];}
+
+/** Where a profile's photo stands. Profiles seeded from an application start
+ *  at MISSING: they are public for launch, but the expert is asked for a photo
+ *  and warned the profile goes hidden once the grace period is enforced. */
+export type PhotoStatus="MISSING"|"PENDING_REVIEW"|"APPROVED";
+export type ClaimState="UNCLAIMED"|"CLAIMED";
+export type DocumentKind="cv"|"portfolio"|"certificate"|"id"|"other";
+
+export interface ExpertLink{label:string;url:string}
+
+export interface ExpertProfile{
+  id:string;slug:string;name:string;title:string;bio:string;location:string;timezone:string;photoUrl:string;
+  skills:string[];integrations:string[];hourlyRate:number;currency:string;availability:string;
+  rating:number;reviewCount:number;completedProjects:number;verified:boolean;status:VerificationState;badges:string[];
+  /** Seeded/claim fields. Optional so the existing demo fixtures still typecheck. */
+  country?:string;links?:ExpertLink[];source?:"application"|"self-signup";
+  photoStatus?:PhotoStatus;claimState?:ClaimState;claimedByUid?:string|null;claimedAt?:string|null;
+  /** Fields the expert still has to supply. Drives the completeness prompts. */
+  missingFields?:string[];
+  createdAt?:string;updatedAt?:string;
+}
+
+export interface ExpertDocument{
+  id:string;expertId:string;kind:DocumentKind;fileName:string;storagePath:string;
+  contentType:string;sizeBytes:number;uploadedAt:string;reviewState:"PENDING"|"APPROVED"|"REJECTED";
+}
+
+/** One per seeded candidate. `codeHash` is a SHA-256 of the plaintext code —
+ *  the plaintext only ever exists in the operator's local sheet. */
+export interface ClaimCode{
+  expertId:string;email:string;codeHash:string;used:boolean;
+  createdAt:string;usedAt?:string|null;usedByUid?:string|null;usedByEmail?:string|null;
+}
+
 export interface Showcase{id:string;expertId:string;title:string;summary:string;outcome:string;integrations:string[];complexity:"Intermediate"|"Advanced"|"Expert";}
 export interface MarketplaceJob{id:string;clientId:string;clientName:string;title:string;description:string;skills:string[];integrations:string[];visibility:JobVisibility;status:JobStatus;budgetMin:number;budgetMax:number;currency:string;delivery:string;proposalCount:number;postedAt:string;verifiedPayment:boolean;}
 export interface SessionUser{uid:string;email:string;name?:string;role:UserRole;admin?:boolean;}

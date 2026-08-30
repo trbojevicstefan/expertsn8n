@@ -1118,3 +1118,167 @@ h1, h2, h3 {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
   .button:hover, .expert-card:hover, .diff-card:hover, .usecase-card:hover { transform: none; }
 }
+
+/* ==========================================================================
+   Seeded profiles, claiming and document upload
+   ========================================================================== */
+
+/* ---------- avatars ---------- */
+
+.avatar-sm { width: 46px; height: 46px; }
+.avatar-xl { width: 94px; height: 94px; }
+.mini-expert .avatar { flex: 0 0 auto; }
+
+.avatar-initials,
+.avatar-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--warm-100);
+  color: var(--ink-500);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+.avatar-initials.avatar-sm { font-size: 16px; }
+.avatar-initials.avatar-lg { font-size: 22px; }
+.avatar-initials.avatar-xl { font-size: 32px; }
+.avatar-empty { color: var(--ink-400); }
+
+/* ---------- quiet placeholders for missing data ---------- */
+
+.meta-quiet { color: var(--ink-400); font-size: 12.5px; }
+.rate-tbd { font-size: 20px; font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; }
+
+/* ---------- unvetted notice on a public profile ---------- */
+
+.pending-box {
+  display: flex;
+  gap: 10px;
+  background: var(--warm-50);
+  border: 1px solid var(--line);
+  color: var(--ink-500);
+  border-radius: 11px;
+  padding: 13px;
+  font-size: 12.3px;
+  margin-top: 16px;
+}
+.pending-box svg { flex: 0 0 auto; color: var(--ink-400); }
+.pending-box strong { color: var(--ink-700); }
+
+.claim-prompt { padding: 20px; margin-top: 16px; }
+.claim-prompt strong { display: block; font-family: var(--font-display); font-size: 17px; }
+.claim-prompt p { color: var(--ink-500); font-size: 13.3px; margin: 6px 0 14px; }
+
+/* ---------- profile links ---------- */
+
+.profile-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-700);
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+.profile-link:hover { border-color: var(--accent-line); color: var(--accent); }
+
+/* ---------- claim flow ---------- */
+
+.claim-code-input {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 17px;
+}
+.claim-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 18px;
+  font-size: 12.3px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.claim-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--trust); }
+
+.claim-found {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px 16px;
+  border: 1px solid var(--trust-line);
+  background: var(--trust-soft);
+  border-radius: 11px;
+  margin-bottom: 24px;
+}
+.claim-found svg { color: var(--trust); flex: 0 0 auto; }
+.claim-found strong { display: block; font-size: 14.5px; }
+.claim-found span { display: block; font-size: 12.5px; color: var(--ink-500); }
+
+/* ---------- warning variant of the inline notice ---------- */
+
+.notice-warning {
+  border-color: #f0dcb4;
+  background: #fdf6e9;
+  color: #7c4a10;
+}
+.notice-warning strong { color: #613808; }
+
+/* ---------- profile completeness ---------- */
+
+.completeness-card { padding: 20px 22px; margin-bottom: 18px; }
+.completeness-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.completeness-head strong { display: block; font-size: 14px; }
+.completeness-head span { display: block; font-size: 12.5px; color: var(--muted); }
+.completeness-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--warm-100);
+  overflow: hidden;
+  margin-top: 14px;
+}
+.completeness-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+.completeness-missing { margin: 12px 0 0; font-size: 12.8px; color: var(--ink-500); }
+
+/* ---------- upload controls ---------- */
+
+.photo-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.photo-row .button { cursor: pointer; }
+
+.field-hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.doc-upload { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.doc-upload .select { width: 210px; }
+.doc-upload .button { cursor: pointer; }
+
+.doc-list { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 9px; }
+.doc-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.doc-list svg { color: var(--ink-400); }
+.doc-list strong { display: block; font-size: 13.3px; word-break: break-all; }
+.doc-list span { display: block; font-size: 11.8px; color: var(--muted); text-transform: capitalize; }
+
+@media (max-width: 640px) {
+  .doc-upload .select { width: 100%; }
+  .doc-upload .button { width: 100%; }
+  .completeness-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+}

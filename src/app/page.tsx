@@ -3,6 +3,7 @@ import { ArrowRight, CheckCircle2, Search, ShieldCheck, Sparkles } from "lucide-
 import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
 import { ExpertCard } from "@/components/expert-card";
+import { Avatar } from "@/components/avatar";
 import {
   AnnounceBar, CaseStudiesSection, ComparisonSection, DifferentiatorsSection,
   ExpertBand, FaqSection, FinalCta, HowItWorksSection, LogoStrip,
@@ -11,6 +12,11 @@ import {
 } from "@/components/marketing";
 import { listPublishedExperts } from "@/lib/data";
 import { faqs } from "@/lib/site-content";
+
+// The featured strip reads live profiles, so the page cannot be frozen at build
+// time (where Firebase Admin credentials do not exist and demo data would be
+// baked in permanently).
+export const dynamic = "force-dynamic";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://n8nexperts.io";
 
@@ -98,15 +104,15 @@ export default async function Home() {
               </div>
               {experts.slice(0, 3).map((e) => (
                 <div className="mini-expert" key={e.id}>
-                  <img src={e.photoUrl} alt="" />
+                  <Avatar name={e.name} src={e.photoUrl} size="sm" />
                   <div>
                     <strong>{e.name}</strong>
                     <p>{e.title}</p>
                   </div>
                   <div className="mini-rate">
-                    <strong>€{e.hourlyRate}/hr</strong>
+                    <strong>{e.hourlyRate > 0 ? `€${e.hourlyRate}/hr` : "On request"}</strong>
                     <br />
-                    {e.availability}
+                    {e.availability || "Ask for availability"}
                   </div>
                 </div>
               ))}
