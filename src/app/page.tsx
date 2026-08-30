@@ -1,19 +1,165 @@
 import Link from "next/link";
-import { BadgeCheck, CheckCircle2, CreditCard, Search, ShieldCheck, Sparkles, Workflow } from "lucide-react";
+import { ArrowRight, CheckCircle2, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
 import { ExpertCard } from "@/components/expert-card";
+import {
+  AnnounceBar, CaseStudiesSection, ComparisonSection, DifferentiatorsSection,
+  ExpertBand, FaqSection, FinalCta, HowItWorksSection, LogoStrip,
+  PricingSection, ProtectionBanner, TestimonialsSection, TrustBar,
+  UseCasesSection, VettingSection,
+} from "@/components/marketing";
 import { listPublishedExperts } from "@/lib/data";
+import { faqs } from "@/lib/site-content";
+
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://n8nexperts.io";
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${appUrl}/#organization`,
+      name: "n8nexperts",
+      url: appUrl,
+      description:
+        "A specialist marketplace for hiring reviewed n8n automation developers, with human vetting and milestone-protected payments.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${appUrl}/#website`,
+      url: appUrl,
+      name: "n8nexperts",
+      publisher: { "@id": `${appUrl}/#organization` },
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ],
+};
 
 export default async function Home() {
-  const experts = (await listPublishedExperts()).slice(0,4);
-  return <><SiteHeader/><main>
-    <section className="hero"><div className="container hero-grid"><div><span className="kicker"><span className="kicker-dot"/>Specialists, not generalists</span><h1>Hire <em>verified n8n experts</em> who can ship.</h1><p className="hero-copy">Find experienced automation developers, review real workflow showcases and hire through funded milestones — without losing control of the relationship or payment.</p><div className="hero-actions"><Link className="button button-primary" href="/experts"><Search size={17}/>Find an expert</Link><Link className="button button-secondary" href="/sign-up"><Sparkles size={17}/>Post a job</Link></div><div className="hero-trust"><span><CheckCircle2 size={16}/>Manual expert review</span><span><CheckCircle2 size={16}/>Protected milestone flow</span><span><CheckCircle2 size={16}/>No direct contact before funding</span></div></div>
-      <div className="hero-panel"><div className="hero-panel-top"><strong>Experts available now</strong><span className="status status-success">Live talent</span></div><div className="mini-search"><Search size={16}/>Search n8n, HubSpot, AI agents...</div>{experts.slice(0,3).map(e=><div className="mini-expert" key={e.id}><img src={e.photoUrl} alt=""/><div><strong>{e.name}</strong><p>{e.title}</p></div><div className="mini-rate"><strong>€{e.hourlyRate}/hr</strong><br/>{e.availability}</div></div>)}</div>
-    </div></section>
-    <div className="logo-strip"><div className="container"><span>Built for workflows across</span><b>HubSpot</b><b>Salesforce</b><b>OpenAI</b><b>Google</b><b>Slack</b><b>Postgres</b><b>Stripe</b></div></div>
-    <section className="section"><div className="container"><div className="section-head"><div><span className="eyebrow">Curated talent</span><h2>People who work in n8n every day.</h2></div><p>Every published expert completes a profile, provides a photo and CV, submits real workflow work, and passes marketplace review before appearing here.</p></div><div className="experts-grid">{experts.map(e=><ExpertCard key={e.id} expert={e}/>)}</div><div style={{textAlign:"center",marginTop:28}}><Link href="/experts" className="button button-secondary">Browse all experts</Link></div></div></section>
-    <section id="how-it-works" className="section section-soft"><div className="container"><div className="section-head"><div><span className="eyebrow">Simple by design</span><h2>From problem to production workflow.</h2></div></div><div className="how-grid"><div className="step-card card"><div className="step-num">01</div><h3>Post or invite privately</h3><p>Publish a job to the marketplace, keep it invite-only, or shortlist experts from their portfolio and skills.</p></div><div className="step-card card"><div className="step-num">02</div><h3>Agree scope and fund</h3><p>Choose a proposal, confirm milestones and fund the first milestone through the platform before unrestricted messaging opens.</p></div><div className="step-card card"><div className="step-num">03</div><h3>Ship, review, release</h3><p>Work stays tied to milestones, submissions and an auditable contract timeline. Approve delivery to release funds.</p></div></div></div></section>
-    <section className="section"><div className="container"><div className="safety-banner"><div><h2>The relationship stays protected until it becomes a contract.</h2><p>Before funding, proposals and clarification fields block direct contact details and external communication links. Once a milestone is funded, contract messaging and file exchange unlock for both sides.</p></div><div className="safety-points"><span><ShieldCheck size={17}/>Manual profile moderation</span><span><CreditCard size={17}/>Webhook-driven funding state</span><span><Workflow size={17}/>Workflow showcase review</span><span><BadgeCheck size={17}/>Audit trail for admin actions</span></div></div></div></section>
-  </main><Footer/></>;
+  const experts = (await listPublishedExperts()).slice(0, 6);
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <AnnounceBar />
+      <SiteHeader />
+      <main>
+        <section className="hero">
+          <div className="container hero-grid">
+            <div>
+              <span className="kicker">
+                <span className="kicker-dot" />
+                Specialists, not generalists
+              </span>
+              <h1>
+                Hire n8n developers who have <em>already shipped it</em>.
+              </h1>
+              <p className="hero-copy">
+                Every expert here is reviewed by a human across five stages — identity, real workflow case
+                studies, a technical read of their architecture, and a reference call. One in nine applicants
+                is published.
+              </p>
+              <div className="hero-actions">
+                <Link className="button button-primary button-lg" href="/sign-up">
+                  <Search size={17} strokeWidth={2.2} />
+                  Post a job — free
+                </Link>
+                <Link className="button button-secondary button-lg" href="/experts">
+                  <Sparkles size={17} strokeWidth={2.2} />
+                  Browse the directory
+                </Link>
+              </div>
+              <div className="hero-trust">
+                <span><CheckCircle2 size={16} strokeWidth={2.2} />Human-reviewed profiles</span>
+                <span><CheckCircle2 size={16} strokeWidth={2.2} />Funds released on approval</span>
+                <span><CheckCircle2 size={16} strokeWidth={2.2} />Auditable contract record</span>
+              </div>
+            </div>
+
+            <div className="hero-panel">
+              <div className="hero-panel-top">
+                <strong>Available this week</strong>
+                <span className="status status-success">Live directory</span>
+              </div>
+              <div className="mini-search">
+                <Search size={16} />
+                Search n8n, HubSpot, AI agents…
+              </div>
+              {experts.slice(0, 3).map((e) => (
+                <div className="mini-expert" key={e.id}>
+                  <img src={e.photoUrl} alt="" />
+                  <div>
+                    <strong>{e.name}</strong>
+                    <p>{e.title}</p>
+                  </div>
+                  <div className="mini-rate">
+                    <strong>€{e.hourlyRate}/hr</strong>
+                    <br />
+                    {e.availability}
+                  </div>
+                </div>
+              ))}
+              <div className="hero-panel-foot">
+                <span><ShieldCheck size={14} strokeWidth={2.2} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />All profiles reference-checked</span>
+                <Link className="text-link" href="/experts" style={{ fontSize: 12 }}>
+                  See all <ArrowRight size={12} strokeWidth={2.4} style={{ display: "inline", verticalAlign: "-1px" }} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <TrustBar />
+        <LogoStrip />
+        <DifferentiatorsSection />
+        <VettingSection />
+
+        <section className="section">
+          <div className="container">
+            <div className="section-head">
+              <div>
+                <span className="eyebrow">Curated talent</span>
+                <h2>People who work in n8n every day.</h2>
+              </div>
+              <p>
+                Each profile carries a reviewed CV, a public photo, at least one detailed workflow case study
+                and a checked client reference before it appears here.
+              </p>
+            </div>
+            <div className="experts-grid">
+              {experts.map((e) => <ExpertCard key={e.id} expert={e} />)}
+            </div>
+            <div style={{ textAlign: "center", marginTop: 34 }}>
+              <Link href="/experts" className="button button-secondary button-lg">
+                Browse all experts <ArrowRight size={16} strokeWidth={2.2} />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <UseCasesSection />
+        <HowItWorksSection />
+        <ProtectionBanner />
+        <CaseStudiesSection />
+        <TestimonialsSection />
+        <ComparisonSection />
+        <PricingSection />
+        <ExpertBand />
+        <FaqSection />
+        <FinalCta />
+      </main>
+      <Footer />
+    </>
+  );
 }

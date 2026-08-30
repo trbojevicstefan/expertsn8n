@@ -7,3 +7,9 @@ out
 .firebase
 firebase-debug.log
 .DS_Store
+
+# build artifacts
+*.tsbuildinfo
+
+# local tooling
+.claude
