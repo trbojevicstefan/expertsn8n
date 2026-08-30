@@ -100,7 +100,7 @@ function buildCsv(rows) {
 
 async function main() {
   const accessToken = DRY_RUN ? "" : token();
-  const appUrl = process.env.APP_URL || "https://n8nexperts--studio-7677538569-60fbd.us-central1.hosted.app";
+  const appUrl = process.env.APP_URL || "https://n8nexperts.io";
   const now = new Date().toISOString();
 
   const writes = [];
