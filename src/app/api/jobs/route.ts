@@ -21,8 +21,9 @@ const schema = z
 
 export async function POST(req: Request) {
   const session = await getSession();
-  if (!session || session.role !== "client") {
-    return NextResponse.json({ error: "Client authentication required." }, { status: 401 });
+  // Admins post on behalf of the marketplace as well as clients.
+  if (!session || (session.role !== "client" && !session.admin)) {
+    return NextResponse.json({ error: "Client or admin authentication required." }, { status: 401 });
   }
   if (!firebaseAdminConfigured) {
     return NextResponse.json({ error: "Firebase Admin is not configured." }, { status: 503 });

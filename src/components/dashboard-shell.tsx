@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Bell, BriefcaseBusiness, ChevronRight, CircleDollarSign, FileCheck2, LayoutDashboard,
-  LogOut, Settings, ShieldCheck, UserRoundSearch, Workflow,
+  LogOut, Plus, Settings, ShieldCheck, UserRoundSearch, Workflow,
 } from "lucide-react";
 import { Brand } from "./brand";
 import type { SessionUser } from "@/lib/types";
@@ -53,7 +53,11 @@ export function DashboardShell({
               <div className="nav-label">Administration</div>
               <Link href="/admin"><ShieldCheck size={18} /><span>Admin panel</span><ChevronRight className="side-chevron" size={15} /></Link>
               <Link href="/admin/experts"><UserRoundSearch size={18} /><span>Experts</span></Link>
+              <Link href="/admin/jobs"><BriefcaseBusiness size={18} /><span>All jobs</span></Link>
               <Link href="/admin/payments"><CircleDollarSign size={18} /><span>Payments</span></Link>
+              <div className="nav-label">Hiring</div>
+              <Link href="/dashboard/client/jobs/new"><Plus size={18} /><span>Post a job</span></Link>
+              <Link href="/dashboard/client/jobs"><FileCheck2 size={18} /><span>My posted jobs</span></Link>
             </>
           )}
         </nav>

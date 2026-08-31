@@ -63,6 +63,15 @@ export async function findJob(id: string) {
   return job.visibility === "PUBLIC" && job.status === "OPEN" ? job : null;
 }
 
+/** Every job regardless of status or visibility. Admin surfaces only. */
+export async function listAllJobs(): Promise<MarketplaceJob[]> {
+  if (!firebaseAdminConfigured) return empty<MarketplaceJob>();
+  const snap = await adminDb().collection("jobs").limit(300).get();
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as MarketplaceJob))
+    .sort((a, b) => String(b.postedAt || "").localeCompare(String(a.postedAt || "")));
+}
+
 export async function listJobsForClient(clientId: string): Promise<MarketplaceJob[]> {
   if (!firebaseAdminConfigured) return empty<MarketplaceJob>();
   const snap = await adminDb().collection("jobs").where("clientId", "==", clientId).limit(100).get();
