@@ -1735,3 +1735,9 @@ a.admin-kpi:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
 .data-table tr.is-selected { background: var(--accent-soft); }
 
 .sc-bulk { display: inline-flex; align-items: center; gap: 8px; }
+
+.job-row-actions { display: inline-flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+
+.asset-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.doc-list li { grid-template-columns: auto 1fr auto; }
+.doc-list li > .asset-actions { grid-column: 1 / -1; justify-content: flex-end; }

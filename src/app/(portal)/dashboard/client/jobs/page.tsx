@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { StatusBadge } from "@/components/status-badge";
+import { ClientJobsTable } from "@/components/client-jobs-table";
 import { EmptyState } from "@/components/empty-state";
 import { requireSession } from "@/lib/auth/server";
 import { listJobsForClient } from "@/lib/data";
@@ -31,29 +31,7 @@ export default async function MyJobs() {
           action={{ label: "Post your first job", href: "/dashboard/client/jobs/new" }}
         />
       ) : (
-        <div className="data-card card">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Job</th><th>Visibility</th><th>Status</th><th>Proposals</th><th>Budget</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.map((j) => (
-                <tr key={j.id}>
-                  <td>
-                    <strong>{j.title}</strong><br />
-                    <span className="muted">{j.postedAt}</span>
-                  </td>
-                  <td><StatusBadge tone={j.visibility === "PRIVATE" ? "neutral" : "info"}>{j.visibility}</StatusBadge></td>
-                  <td><StatusBadge tone={j.status === "OPEN" ? "success" : "neutral"}>{j.status}</StatusBadge></td>
-                  <td>{j.proposalCount}</td>
-                  <td>€{j.budgetMin.toLocaleString()}–€{j.budgetMax.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ClientJobsTable jobs={jobs} />
       )}
     </>
   );

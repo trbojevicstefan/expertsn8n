@@ -10,6 +10,7 @@ import { MessageThread } from "@/components/message-thread";
 import { ShowcaseAttachments } from "@/components/showcase-attachments";
 import { ShowcaseReviewActions } from "@/components/showcase-review-actions";
 import { ShowcaseBulkApprove } from "@/components/showcase-bulk-approve";
+import { DocumentReviewActions, PhotoReviewActions } from "@/components/admin-asset-actions";
 import { threadFor } from "@/lib/expert-messages";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { MISSING_FIELD_LABELS } from "@/lib/expert-account";
@@ -108,6 +109,12 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
               </div>
             </div>
 
+            <PhotoReviewActions
+              expertId={profile.id}
+              photoStatus={profile.photoStatus || "MISSING"}
+              hasPhoto={Boolean(profile.photoUrl)}
+            />
+
             <div className="review-facts">
               <div><span>Source</span><strong>{profile.source === "application" ? "Email application" : "Self signup"}</strong></div>
               <div><span>Claim</span><strong>{profile.claimState || "UNCLAIMED"}</strong></div>
@@ -166,6 +173,7 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
                           <strong>{d.fileName}</strong>
                           <span>{d.kind} · {(d.sizeBytes / 1024 / 1024).toFixed(1)} MB · {d.reviewState.toLowerCase()}</span>
                         </div>
+                        <DocumentReviewActions documentId={d.id} reviewState={d.reviewState || "PENDING"} />
                         <a
                           className="button button-secondary button-sm"
                           href={`/api/files?path=${encodeURIComponent(d.storagePath)}`}
