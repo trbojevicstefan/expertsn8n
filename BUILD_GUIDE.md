@@ -182,3 +182,7 @@ Working branch: `build/marketplace-hardening`
 - [ ] Baseline HTTP security headers
 - [ ] Deterministic CI (`npm ci`)
 - [ ] Re-run CI and mark completed items above
+
+### Validation note
+
+The first hardening run exposed a pre-existing toolchain incompatibility: TypeScript 7.0.2 cannot currently be loaded by the `typescript-eslint` version used by Next 16.3.3, and ESLint 10 is outside the peer range of several bundled plugins. The branch pins the lint toolchain to the supported TypeScript 6 compatibility package and ESLint 9 while preserving Node 22 and Next 16.3.3. The lockfile is being regenerated and must be committed before the CI checkbox can be marked complete.
