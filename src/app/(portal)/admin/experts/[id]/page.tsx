@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { AdminReviewActions } from "@/components/admin-review-actions";
 import { MessageThread } from "@/components/message-thread";
+import { ShowcaseAttachments } from "@/components/showcase-attachments";
 import { threadFor } from "@/lib/expert-messages";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { MISSING_FIELD_LABELS } from "@/lib/expert-account";
@@ -205,23 +206,7 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
                     <h3>{s.title}</h3>
                     <p>{s.summary}</p>
                     <span className="outcome">{s.outcome}</span>
-                    {(s.attachments || []).length > 0 && (
-                      <ul className="attach-list" style={{ marginTop: 12 }}>
-                        {(s.attachments || []).map((a) => (
-                          <li key={a.id}>
-                            <FileText size={14} strokeWidth={2} />
-                            <a
-                              href={`/api/files?path=${encodeURIComponent(a.storagePath)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {a.name}
-                            </a>
-                            <span>{(a.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <ShowcaseAttachments attachments={s.attachments || []} />
                   </article>
                 ))}
               </div>

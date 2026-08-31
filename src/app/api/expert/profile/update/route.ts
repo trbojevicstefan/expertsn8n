@@ -4,7 +4,20 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 
+export const N8N_EXPERIENCE_OPTIONS = [
+  "n8n Cloud",
+  "Self-hosted n8n",
+  "Queue mode / scaling",
+  "Custom nodes",
+  "AI agents in n8n",
+  "Migrations from Zapier or Make",
+];
+
 const schema = z.object({
+  // Editable, unlike the slug: public profile URLs are already circulating in
+  // the claim emails, so changing a name must not change the link.
+  name: z.string().min(2).max(80),
+  companyName: z.string().max(80).default(""),
   title: z.string().min(3).max(120),
   bio: z.string().min(20).max(3000),
   location: z.string().max(120),
@@ -14,6 +27,11 @@ const schema = z.object({
   availability: z.string().max(80),
   skills: z.array(z.string().min(1).max(48)).max(20),
   integrations: z.array(z.string().min(1).max(48)).max(20),
+  languages: z.array(z.string().min(1).max(40)).max(10).default([]),
+  yearsExperience: z.number().int().min(0).max(60).default(0),
+  hoursPerWeek: z.number().int().min(0).max(80).default(0),
+  minEngagement: z.number().int().min(0).max(1000000).default(0),
+  n8nExperience: z.array(z.enum(N8N_EXPERIENCE_OPTIONS as [string, ...string[]])).max(10).default([]),
   links: z
     .array(
       z.object({
@@ -78,6 +96,10 @@ export async function POST(req: Request) {
     { ...input, missingFields: stillMissing, updatedAt: new Date().toISOString() },
     { merge: true },
   );
+
+  // The account's display name follows the profile so the portal header and any
+  // future notification address them the same way.
+  await db.collection("users").doc(session.uid).set({ name: input.name }, { merge: true });
 
   return NextResponse.json({ ok: true, missingFields: stillMissing });
 }

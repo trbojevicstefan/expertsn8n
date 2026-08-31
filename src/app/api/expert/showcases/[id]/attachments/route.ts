@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { isImage, looksLikeJson, summariseWorkflow } from "@/lib/n8n-workflow";
 
 const schema = z.object({
   name: z.string().min(1).max(200),
@@ -53,14 +54,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "A showcase can hold up to 10 attachments." }, { status: 400 });
   }
 
-  const attachment = {
+  const attachment: Record<string, unknown> = {
     id: randomUUID(),
     name: input.name,
     storagePath: input.storagePath,
     contentType: input.contentType,
     sizeBytes: input.sizeBytes,
     uploadedAt: new Date().toISOString(),
+    kind: isImage(input.contentType) ? "image" : looksLikeJson(input.name, input.contentType) ? "workflow" : "file",
   };
+
+  // An n8n export is summarised here and the summary is what gets stored. The
+  // raw file keeps its parameter values and credential references, so none of
+  // it is copied into Firestore or rendered.
+  if (attachment.kind === "workflow" && input.sizeBytes <= 5 * 1024 * 1024) {
+    try {
+      const [buf] = await adminStorage().bucket().file(input.storagePath).download();
+      const summary = summariseWorkflow(JSON.parse(buf.toString("utf8")));
+      if (summary) attachment.workflow = summary;
+      else attachment.parseError = "This does not look like an n8n workflow export.";
+    } catch {
+      attachment.parseError = "The file could not be read as JSON.";
+    }
+  }
 
   await owned.ref.set(
     { attachments: [...existing, attachment], updatedAt: attachment.uploadedAt },

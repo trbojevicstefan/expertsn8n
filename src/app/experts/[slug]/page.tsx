@@ -43,7 +43,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
                     <h1>{expert.name}</h1>
                     {expert.verified && <CheckCircle2 className="verified-icon" size={20} aria-label="Profile reviewed" />}
                   </div>
-                  <p>{expert.title}</p>
+                  <p>{expert.title}{expert.companyName ? ` · ${expert.companyName}` : ""}</p>
                   {(expert.location || expert.timezone) && (
                     <div className="muted-row">
                       <MapPin size={15} />
@@ -62,6 +62,14 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
             <section className="profile-about card">
               <h2>About</h2>
               <p>{expert.bio}</p>
+              {expert.n8nExperience && expert.n8nExperience.length > 0 && (
+                <>
+                  <h3 className="about-sub">n8n experience</h3>
+                  <div className="chip-row">
+                    {expert.n8nExperience.map((x) => <span className="chip chip-accent" key={x}>{x}</span>)}
+                  </div>
+                </>
+              )}
               {(expert.skills.length > 0 || expert.integrations.length > 0) && (
                 <div className="chip-row">
                   {[...expert.skills, ...expert.integrations].map((x) => <span className="chip" key={x}>{x}</span>)}
@@ -136,6 +144,18 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
                   <span>Availability</span>
                   <strong>{expert.availability || "On request"}</strong>
                 </div>
+                {expert.hoursPerWeek ? (
+                  <div className="fact"><span>Hours per week</span><strong>{expert.hoursPerWeek}</strong></div>
+                ) : null}
+                {expert.yearsExperience ? (
+                  <div className="fact"><span>Experience</span><strong>{expert.yearsExperience}+ years</strong></div>
+                ) : null}
+                {expert.languages?.length ? (
+                  <div className="fact"><span>Languages</span><strong>{expert.languages.join(", ")}</strong></div>
+                ) : null}
+                {expert.minEngagement ? (
+                  <div className="fact"><span>Minimum project</span><strong>€{expert.minEngagement.toLocaleString()}</strong></div>
+                ) : null}
               </div>
 
               {expert.verified ? (

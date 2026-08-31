@@ -18,6 +18,14 @@ export interface ExpertProfile{
   /** Seeded/claim fields. Optional so the existing demo fixtures still typecheck. */
   country?:string;links?:ExpertLink[];source?:"application"|"self-signup";
   photoStatus?:PhotoStatus;claimState?:ClaimState;claimedByUid?:string|null;claimedAt?:string|null;
+  /** Optional detail that makes a profile answer a client's real questions.
+   *  All optional so existing profiles stay valid. */
+  companyName?:string;
+  languages?:string[];
+  yearsExperience?:number;
+  hoursPerWeek?:number;
+  minEngagement?:number;
+  n8nExperience?:string[];
   /** Fields the expert still has to supply. Drives the completeness prompts. */
   missingFields?:string[];
   createdAt?:string;updatedAt?:string;
@@ -78,4 +86,8 @@ export interface ShowcaseAttachment {
   contentType: string;
   sizeBytes: number;
   uploadedAt: string;
+  kind?: "image" | "workflow" | "file";
+  /** Structure only. The raw export is never copied here. */
+  workflow?: import("./n8n-workflow").N8nWorkflowSummary;
+  parseError?: string;
 }

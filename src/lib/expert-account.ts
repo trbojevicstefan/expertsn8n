@@ -31,13 +31,20 @@ export async function documentsForUid(uid: string): Promise<ExpertDocument[]> {
 }
 
 /**
- * Which public-facing fields are filled in, and which are not.
+ * Completeness is deliberately two-tier.
  *
- * Returns the gaps by name rather than just a number: a bare percentage that
- * will not move leaves people guessing which field is holding it back.
+ * `pct` counts only the fields a profile needs to be usable in the directory,
+ * so adding richer optional fields later never knocks an existing expert's
+ * percentage down. `extras` are the things that make a profile stand out and
+ * are reported separately as suggestions.
  */
-export function completenessDetail(profile: ExpertProfile): { pct: number; gaps: string[] } {
-  const checks: [string, boolean][] = [
+export function completenessDetail(profile: ExpertProfile): {
+  pct: number;
+  gaps: string[];
+  extras: { label: string; done: boolean }[];
+} {
+  const core: [string, boolean][] = [
+    ["Your name", Boolean(profile.name && profile.name.trim().length > 1)],
     ["Profile photo", Boolean(profile.photoUrl)],
     ["A bio of at least a short paragraph", Boolean(profile.bio && profile.bio.length > 80)],
     ["Location", Boolean(profile.location)],
@@ -46,14 +53,25 @@ export function completenessDetail(profile: ExpertProfile): { pct: number; gaps:
     ["Skills", Boolean(profile.skills?.length)],
     ["At least one link", Boolean(profile.links?.length)],
   ];
-  const done = checks.filter(([, ok]) => ok).length;
+
+  const extras = [
+    { label: "Languages you work in", done: Boolean(profile.languages?.length) },
+    { label: "Years of experience", done: Boolean(profile.yearsExperience) },
+    { label: "Hours available per week", done: Boolean(profile.hoursPerWeek) },
+    { label: "Minimum engagement size", done: Boolean(profile.minEngagement) },
+    { label: "Where your n8n experience sits", done: Boolean(profile.n8nExperience?.length) },
+    { label: "Integrations you work with", done: Boolean(profile.integrations?.length) },
+  ];
+
+  const done = core.filter(([, ok]) => ok).length;
   return {
-    pct: Math.round((done / checks.length) * 100),
-    gaps: checks.filter(([, ok]) => !ok).map(([label]) => label),
+    pct: Math.round((done / core.length) * 100),
+    gaps: core.filter(([, ok]) => !ok).map(([label]) => label),
+    extras,
   };
 }
 
-/** Percentage of the public-facing fields that are actually filled in. */
+/** Percentage of the required public-facing fields that are filled in. */
 export function completeness(profile: ExpertProfile): number {
   return completenessDetail(profile).pct;
 }

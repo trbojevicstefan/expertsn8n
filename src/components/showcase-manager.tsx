@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Paperclip, Plus, Trash2, Workflow, X } from "lucide-react";
+import { Paperclip, Plus, Trash2, Workflow, X } from "lucide-react";
+import { ShowcaseAttachments } from "./showcase-attachments";
 import { ref, uploadBytes } from "firebase/storage";
 import { firebaseStorage } from "@/lib/firebase/client";
 import { StatusBadge } from "./status-badge";
@@ -234,27 +235,11 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
               )}
 
               <div className="attach-block">
-                {(s.attachments || []).length > 0 && (
-                  <ul className="attach-list">
-                    {(s.attachments || []).map((a) => (
-                      <li key={a.id}>
-                        <FileText size={14} strokeWidth={2} />
-                        <a href={`/api/files?path=${encodeURIComponent(a.storagePath)}`} target="_blank" rel="noopener noreferrer">
-                          {a.name}
-                        </a>
-                        <span>{(a.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
-                        <button
-                          type="button"
-                          onClick={() => detach(s.id, a.id)}
-                          disabled={busy === `att-${a.id}`}
-                          aria-label={`Remove ${a.name}`}
-                        >
-                          <Trash2 size={12} strokeWidth={2.2} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <ShowcaseAttachments
+                  attachments={s.attachments || []}
+                  onRemove={(attId) => detach(s.id, attId)}
+                  busyId={busy}
+                />
                 <label className="button button-secondary button-sm attach-add">
                   <Paperclip size={14} strokeWidth={2.2} />
                   {busy === `att-${s.id}` ? "Uploading…" : "Attach a file"}
@@ -264,7 +249,7 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
                     onChange={(e) => e.target.files?.[0] && attach(s.id, e.target.files[0])}
                   />
                 </label>
-                <span className="attach-hint">PDF, images, documents — up to 25 MB. Visible to you and reviewers only.</span>
+                <span className="attach-hint">Screenshots of the workflow, an exported n8n JSON, PDFs — up to 25 MB. An n8n export is shown as a structure preview; its parameter values and credentials are never stored. Visible to you and reviewers only.</span>
               </div>
             </article>
           ))}

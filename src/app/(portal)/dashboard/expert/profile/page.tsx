@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, ExternalLink } from "lucide-react";
+import { Check, CheckCircle2, ExternalLink } from "lucide-react";
 import { getSession } from "@/lib/auth/server";
 import { ProfileEditor } from "@/components/profile-editor";
 import { completenessDetail, documentsForUid, expertProfileForUid } from "@/lib/expert-account";
@@ -56,7 +56,7 @@ export default async function ExpertProfilePage({
     documentsForUid(session.uid),
     threadFor(profile.id),
   ]);
-  const { pct, gaps } = completenessDetail(profile);
+  const { pct, gaps, extras } = completenessDetail(profile);
 
   return (
     <>
@@ -100,7 +100,21 @@ export default async function ExpertProfilePage({
             To reach 100%, still needed: {gaps.join(", ")}.
           </p>
         ) : (
-          <p className="completeness-missing">Everything on your public profile is filled in.</p>
+          <p className="completeness-missing">Everything required is filled in.</p>
+        )}
+
+        {extras.some((x) => !x.done) && (
+          <div className="strengthen">
+            <strong>Optional, but clients ask about these</strong>
+            <ul>
+              {extras.map((x) => (
+                <li key={x.label} className={x.done ? "done" : ""}>
+                  {x.done ? <Check size={13} strokeWidth={2.6} /> : <span className="dot" />}
+                  {x.label}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 

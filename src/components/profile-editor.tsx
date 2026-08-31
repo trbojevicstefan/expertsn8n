@@ -6,6 +6,15 @@ import { AlertTriangle, CheckCircle2, FileText, Plus, Trash2, Upload, UserRound 
 import { firebaseStorage } from "@/lib/firebase/client";
 import type { ExpertDocument, ExpertProfile } from "@/lib/types";
 
+const N8N_EXPERIENCE_OPTIONS = [
+  "n8n Cloud",
+  "Self-hosted n8n",
+  "Queue mode / scaling",
+  "Custom nodes",
+  "AI agents in n8n",
+  "Migrations from Zapier or Make",
+];
+
 const DOC_KINDS = [
   { value: "cv", label: "CV / resume" },
   { value: "portfolio", label: "Portfolio" },
@@ -32,6 +41,8 @@ export function ProfileEditor({
   photoRequired: boolean;
 }) {
   const [form, setForm] = useState({
+    name: profile.name || "",
+    companyName: profile.companyName || "",
     title: profile.title || "",
     bio: profile.bio || "",
     location: profile.location || "",
@@ -41,7 +52,12 @@ export function ProfileEditor({
     availability: profile.availability || "",
     skills: (profile.skills || []).join(", "),
     integrations: (profile.integrations || []).join(", "),
+    languages: (profile.languages || []).join(", "),
+    yearsExperience: profile.yearsExperience || 0,
+    hoursPerWeek: profile.hoursPerWeek || 0,
+    minEngagement: profile.minEngagement || 0,
   });
+  const [n8nExperience, setN8nExperience] = useState<string[]>(profile.n8nExperience || []);
   const [links, setLinks] = useState<{ label: string; url: string }[]>(profile.links || []);
   const [photoUrl, setPhotoUrl] = useState(profile.photoUrl || "");
   const [documents, setDocuments] = useState(initialDocuments);
@@ -62,8 +78,13 @@ export function ProfileEditor({
         body: JSON.stringify({
           ...form,
           hourlyRate: Number(form.hourlyRate) || 0,
+          yearsExperience: Number(form.yearsExperience) || 0,
+          hoursPerWeek: Number(form.hoursPerWeek) || 0,
+          minEngagement: Number(form.minEngagement) || 0,
           skills: form.skills.split(",").map((s) => s.trim()).filter(Boolean),
           integrations: form.integrations.split(",").map((s) => s.trim()).filter(Boolean),
+          languages: form.languages.split(",").map((s) => s.trim()).filter(Boolean),
+          n8nExperience,
           links: links.filter((l) => l.label.trim() && l.url.trim()),
         }),
       });
@@ -182,6 +203,35 @@ export function ProfileEditor({
       </div>
 
       <div className="form-section">
+        <h2>Who you are</h2>
+        <div className="form-row">
+          <div className="field">
+            <label htmlFor="pe-name">Full name</label>
+            <input
+              id="pe-name" className="input" required minLength={2}
+              value={form.name} onChange={(e) => set("name", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="pe-company">Company or trading name <span className="label-optional">optional</span></label>
+            <input
+              id="pe-company" className="input" placeholder="If you work through a company"
+              value={form.companyName} onChange={(e) => set("companyName", e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="field">
+          <label>Your public profile address</label>
+          <div className="readonly-field">
+            <span>/experts/{profile.slug}</span>
+            <span className="field-hint">
+              Fixed. Your name can change; the link cannot, because it has already been shared.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="form-section">
         <h2>Professional identity</h2>
         <div className="field">
           <label htmlFor="pe-title">Headline</label>
@@ -227,6 +277,62 @@ export function ProfileEditor({
           <div className="field">
             <label htmlFor="pe-int">Integrations, comma separated</label>
             <input id="pe-int" className="input" value={form.integrations} onChange={(e) => set("integrations", e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="form-section">
+        <h2>Working details</h2>
+        <p>These answer the questions clients ask before they get in touch.</p>
+        <div className="form-row">
+          <div className="field">
+            <label htmlFor="pe-langs">Languages you work in, comma separated</label>
+            <input
+              id="pe-langs" className="input" placeholder="English, German, Serbian"
+              value={form.languages} onChange={(e) => set("languages", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="pe-years">Years of experience</label>
+            <input
+              id="pe-years" className="input" type="number" min={0} max={60}
+              value={form.yearsExperience} onChange={(e) => set("yearsExperience", e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="field">
+            <label htmlFor="pe-hours">Hours available per week</label>
+            <input
+              id="pe-hours" className="input" type="number" min={0} max={80}
+              value={form.hoursPerWeek} onChange={(e) => set("hoursPerWeek", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="pe-min">Smallest project you take (€)</label>
+            <input
+              id="pe-min" className="input" type="number" min={0}
+              value={form.minEngagement} onChange={(e) => set("minEngagement", e.target.value)}
+            />
+            <span className="field-hint">Saves both sides a conversation that was never going to work.</span>
+          </div>
+        </div>
+        <div className="field">
+          <label>Where your n8n experience sits</label>
+          <div className="checkbox-grid">
+            {N8N_EXPERIENCE_OPTIONS.map((opt) => (
+              <label className="check" key={opt}>
+                <input
+                  type="checkbox"
+                  checked={n8nExperience.includes(opt)}
+                  onChange={(e) =>
+                    setN8nExperience(e.target.checked
+                      ? [...n8nExperience, opt]
+                      : n8nExperience.filter((x) => x !== opt))}
+                />
+                {opt}
+              </label>
+            ))}
           </div>
         </div>
       </div>
