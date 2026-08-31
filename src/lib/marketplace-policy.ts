@@ -51,7 +51,7 @@ export function evaluateProposalAward(input: ProposalAwardPolicyInput): PolicyRe
   return { ok: true };
 }
 
-export type MilestoneAction = "fund" | "submit" | "release";
+export type MilestoneAction = "fund" | "submit" | "request_changes" | "release";
 
 export interface MilestoneActionPolicyInput {
   action: MilestoneAction;
@@ -86,11 +86,52 @@ export function evaluateMilestoneAction(input: MilestoneActionPolicyInput): Poli
     return { ok: true };
   }
 
+  if (input.action === "request_changes") {
+    if (!input.isClient && !input.isAdmin) {
+      return { ok: false, status: 403, message: "Only the client requests changes." };
+    }
+    if (input.milestoneStatus !== "SUBMITTED") {
+      return { ok: false, status: 409, message: "Changes can only be requested on submitted work." };
+    }
+    return { ok: true };
+  }
+
   if (!input.isClient && !input.isAdmin) {
     return { ok: false, status: 403, message: "Only the client releases funds." };
   }
   if (input.milestoneStatus !== "SUBMITTED") {
     return { ok: false, status: 409, message: "Nothing has been submitted for this milestone." };
   }
+  return { ok: true };
+}
+
+export interface ContractCancellationPolicyInput {
+  contractStatus: string;
+  isClient: boolean;
+  isExpert: boolean;
+  isAdmin: boolean;
+  paymentStatuses: string[];
+}
+
+export function evaluateContractCancellation(input: ContractCancellationPolicyInput): PolicyResult {
+  if (!input.isClient && !input.isExpert && !input.isAdmin) {
+    return { ok: false, status: 403, message: "This contract is not yours." };
+  }
+  if (input.contractStatus === "CANCELLED") return { ok: true, idempotent: true };
+  if (input.contractStatus === "COMPLETED") {
+    return { ok: false, status: 409, message: "A completed contract cannot be cancelled." };
+  }
+
+  const moneyAtRisk = input.paymentStatuses.some((status) =>
+    ["PENDING", "FUNDED", "RELEASE_PENDING", "REFUND_PENDING"].includes(status),
+  );
+  if (moneyAtRisk) {
+    return {
+      ok: false,
+      status: 409,
+      message: "This contract has money at risk. Open a support dispute instead of cancelling it directly.",
+    };
+  }
+
   return { ok: true };
 }
