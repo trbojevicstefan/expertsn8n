@@ -1,5 +1,5 @@
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
-import type { Contract, ContractMessage, SessionUser } from "@/lib/types";
+import type { Contract, ContractMessage, ContractReview, SessionUser } from "@/lib/types";
 
 /** Contracts are only ever visible to their two parties, or to staff. */
 export function canSeeContract(contract: Contract, session: SessionUser): boolean {
@@ -45,9 +45,21 @@ export async function contractMessages(contractId: string): Promise<ContractMess
     .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
 }
 
+export async function contractReviews(contractId: string): Promise<ContractReview[]> {
+  if (!firebaseAdminConfigured) return [];
+  const snap = await adminDb()
+    .collection("reviews")
+    .where("contractId", "==", contractId)
+    .limit(10)
+    .get();
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }) as ContractReview)
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+
 export function fundedTotal(contract: Contract): number {
   return (contract.milestones || [])
-    .filter((m) => ["FUNDED", "IN_PROGRESS", "SUBMITTED", "RELEASE_PENDING", "RELEASED"].includes(m.status))
+    .filter((m) => ["FUNDED", "IN_PROGRESS", "SUBMITTED", "CHANGES_REQUESTED", "DISPUTED", "RELEASE_PENDING", "RELEASED"].includes(m.status))
     .reduce((sum, m) => sum + (m.amount || 0), 0);
 }
 
