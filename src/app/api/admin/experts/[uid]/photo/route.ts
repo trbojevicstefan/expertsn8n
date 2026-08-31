@@ -1,17 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
+import { recordAuditEvent } from "@/lib/audit";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import { ownerUidFor } from "@/lib/expert-messages";
 
-const schema = z.object({ photoStatus: z.enum(["APPROVED", "MISSING", "PENDING_REVIEW"]) });
+const schema = z.object({ photoStatus: z.enum(["APPROVED", "MISSING"]) });
 
-/**
- * Approving a photo is the only thing that clears the review flag. Rejecting it
- * (MISSING) also removes the published copy, otherwise a rejected photo would
- * stay visible on the public profile.
- */
 export async function POST(req: Request, { params }: { params: Promise<{ uid: string }> }) {
   const session = await getSession();
   if (!session?.admin) return NextResponse.json({ error: "Admin required" }, { status: 403 });
@@ -20,7 +17,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
   }
 
   const { uid: expertId } = await params;
-
   let input: z.infer<typeof schema>;
   try {
     input = schema.parse(await req.json());
@@ -34,34 +30,126 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
   if (!snap.exists) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
 
   const profile = snap.data() || {};
+  const bucket = adminStorage().bucket();
+  const pendingPath = typeof profile.pendingPhotoStoragePath === "string" ? profile.pendingPhotoStoragePath : "";
+  const pendingType = typeof profile.pendingPhotoContentType === "string" ? profile.pendingPhotoContentType : "";
+  const hasApprovedPhoto = profile.photoStatus === "APPROVED" && Boolean(profile.photoUrl);
   const nowIso = new Date().toISOString();
-  const patch: Record<string, unknown> = { photoStatus: input.photoStatus, updatedAt: nowIso };
+  const missing = new Set((profile.missingFields || []) as string[]);
 
-  if (input.photoStatus === "MISSING") {
-    patch.photoUrl = "";
-    const missing = new Set(((profile.missingFields || []) as string[]).concat("photo"));
-    patch.missingFields = [...missing];
+  if (input.photoStatus === "APPROVED") {
+    let photoUrl = typeof profile.photoUrl === "string" ? profile.photoUrl : "";
 
-    // Take the published copy down with it.
-    const publicPrefix = `public/experts/${expertId}/`;
-    try {
-      await adminStorage().bucket().deleteFiles({ prefix: publicPrefix });
-    } catch {
-      /* nothing published yet */
+    if (pendingPath) {
+      const source = bucket.file(pendingPath);
+      const [exists] = await source.exists();
+      if (!exists) return NextResponse.json({ error: "Pending private photo could not be found." }, { status: 404 });
+      const [metadata] = await source.getMetadata();
+      const actualType = String(metadata.contentType || "");
+      if (!/^image\/(jpeg|png|webp)$/.test(actualType) || (pendingType && pendingType !== actualType)) {
+        return NextResponse.json({ error: "Pending photo metadata is invalid." }, { status: 400 });
+      }
+
+      const ext = actualType === "image/png" ? "png" : actualType === "image/webp" ? "webp" : "jpg";
+      const publicPrefix = `public/experts/${expertId}/`;
+      const publicPath = `${publicPrefix}photo.${ext}`;
+      const token = randomUUID();
+
+      // Keep the previous approved image until this decision, then atomically
+      // switch the profile URL after the new public object exists.
+      try {
+        await bucket.deleteFiles({ prefix: publicPrefix });
+      } catch {
+        /* first approved photo */
+      }
+      await source.copy(bucket.file(publicPath));
+      await bucket.file(publicPath).setMetadata({
+        contentType: actualType,
+        metadata: { firebaseStorageDownloadTokens: token },
+      });
+      photoUrl =
+        `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
+        `${encodeURIComponent(publicPath)}?alt=media&token=${token}`;
+      try {
+        await source.delete({ ignoreNotFound: true });
+      } catch {
+        /* approved public copy is already durable */
+      }
+    } else if (!photoUrl) {
+      return NextResponse.json({ error: "There is no pending photo to approve." }, { status: 409 });
     }
+
+    missing.delete("photo");
+    await ref.set(
+      {
+        photoUrl,
+        photoStatus: "APPROVED",
+        pendingPhotoStatus: null,
+        pendingPhotoStoragePath: null,
+        pendingPhotoContentType: null,
+        pendingPhotoSizeBytes: null,
+        pendingPhotoUploadedAt: null,
+        missingFields: [...missing],
+        updatedAt: nowIso,
+      },
+      { merge: true },
+    );
+  } else {
+    if (pendingPath) {
+      try {
+        await bucket.file(pendingPath).delete({ ignoreNotFound: true });
+      } catch {
+        /* metadata cleanup still proceeds */
+      }
+    }
+
+    const patch: Record<string, unknown> = {
+      pendingPhotoStatus: null,
+      pendingPhotoStoragePath: null,
+      pendingPhotoContentType: null,
+      pendingPhotoSizeBytes: null,
+      pendingPhotoUploadedAt: null,
+      updatedAt: nowIso,
+    };
+
+    if (hasApprovedPhoto) {
+      patch.photoStatus = "APPROVED";
+      missing.delete("photo");
+    } else {
+      patch.photoStatus = "MISSING";
+      patch.photoUrl = "";
+      missing.add("photo");
+      // Also cleans up legacy behavior where a PENDING_REVIEW photo had already
+      // been copied under public/ before this hardened review flow existed.
+      try {
+        await bucket.deleteFiles({ prefix: `public/experts/${expertId}/` });
+      } catch {
+        /* nothing public */
+      }
+    }
+    patch.missingFields = [...missing];
+    await ref.set(patch, { merge: true });
   }
 
-  await ref.set(patch, { merge: true });
+  await recordAuditEvent({
+    actor: session,
+    action: input.photoStatus === "APPROVED" ? "EXPERT_PHOTO_APPROVED" : "EXPERT_PHOTO_REJECTED",
+    targetType: "expertProfile",
+    targetId: expertId,
+    metadata: { hadPendingPrivatePhoto: Boolean(pendingPath), keptPreviousApprovedPhoto: input.photoStatus === "MISSING" && hasApprovedPhoto },
+  });
 
   const ownerUid = await ownerUidFor(expertId);
   if (ownerUid) {
     await notifyUser(ownerUid, {
       type: "REVIEW_DECISION",
-      title: input.photoStatus === "APPROVED" ? "Your profile photo was approved" : "Your profile photo needs replacing",
+      title: input.photoStatus === "APPROVED" ? "Your profile photo was approved" : "Your new profile photo was not approved",
       body:
         input.photoStatus === "APPROVED"
-          ? "It is live on your public profile."
-          : "It has been removed from your public profile. Please upload another one.",
+          ? "The reviewed photo is now the public profile image."
+          : hasApprovedPhoto
+            ? "Your previous approved photo remains live. You can upload another replacement."
+            : "The pending photo stayed private and was removed. Please upload another one.",
       href: "/dashboard/expert/profile",
       expertId,
     });
