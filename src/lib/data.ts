@@ -1,5 +1,6 @@
-import type { ExpertProfile, MarketplaceJob, Showcase } from "@/lib/types";
+import type { ExpertProfile, MarketplaceJob, SessionUser, Showcase } from "@/lib/types";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { privateJobInviteAccess } from "@/lib/marketplace-policy";
 
 /**
  * Every read here is live Firestore. There is no fixture fallback: an
@@ -11,8 +12,6 @@ function empty<T>(): T[] {
   return [];
 }
 
-/** Complete, claimed profiles surface first; everything else stays visible but
- *  ranks below. Sorted in memory so no composite index is needed. */
 function directoryRank(e: ExpertProfile): number {
   return (e.photoUrl ? 4 : 0) + (e.claimState === "CLAIMED" ? 2 : 0) + (e.hourlyRate > 0 ? 1 : 0);
 }
@@ -55,12 +54,64 @@ export async function listPublicJobs(): Promise<MarketplaceJob[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceJob));
 }
 
+/** Public/SEO lookup deliberately never returns private jobs. */
 export async function findJob(id: string) {
   if (!firebaseAdminConfigured) return null;
   const doc = await adminDb().collection("jobs").doc(id).get();
   if (!doc.exists) return null;
   const job = { id: doc.id, ...doc.data() } as MarketplaceJob;
   return job.visibility === "PUBLIC" && job.status === "OPEN" ? job : null;
+}
+
+export interface JobViewerAccess {
+  job: MarketplaceJob;
+  inviteStatus: string | null;
+  canApply: boolean;
+}
+
+/**
+ * Private jobs never become generally discoverable. The owner/admin may inspect
+ * them; an expert may view only while a non-expired SENT/ACCEPTED invitation
+ * exists, and may apply only after accepting it.
+ */
+export async function findJobForViewer(id: string, session: SessionUser | null): Promise<JobViewerAccess | null> {
+  if (!firebaseAdminConfigured) return null;
+  const db = adminDb();
+  const doc = await db.collection("jobs").doc(id).get();
+  if (!doc.exists) return null;
+  const job = { id: doc.id, ...doc.data() } as MarketplaceJob;
+
+  if (job.visibility === "PUBLIC") {
+    if (job.status !== "OPEN") return null;
+    return { job, inviteStatus: null, canApply: session?.role === "expert" };
+  }
+
+  if (!session) return null;
+  if (session.admin || job.clientId === session.uid) {
+    return { job, inviteStatus: null, canApply: false };
+  }
+  if (session.role !== "expert") return null;
+
+  const invites = await db
+    .collection("jobInvites")
+    .where("jobId", "==", id)
+    .where("expertUid", "==", session.uid)
+    .limit(10)
+    .get();
+  const nowMs = Date.now();
+  for (const inviteDoc of invites.docs) {
+    const invite = inviteDoc.data() || {};
+    const access = privateJobInviteAccess({
+      inviteStatus: String(invite.status || "SENT"),
+      expiresAt: typeof invite.expiresAt === "string" ? invite.expiresAt : null,
+      jobStatus: job.status,
+      nowMs,
+    });
+    if (access.canView) {
+      return { job, inviteStatus: String(invite.status || "SENT"), canApply: access.canApply };
+    }
+  }
+  return null;
 }
 
 /** Every job regardless of status or visibility. Admin surfaces only. */
@@ -86,8 +137,6 @@ export interface MarketplaceStats {
   specialisms: number;
 }
 
-/** Real counts for the public site. Anything the marketplace has not actually
- *  done yet reads as zero rather than being filled in with a plausible number. */
 export async function marketplaceStats(): Promise<MarketplaceStats> {
   if (!firebaseAdminConfigured) {
     return { experts: 0, claimed: 0, countries: 0, openJobs: 0, specialisms: 0 };
