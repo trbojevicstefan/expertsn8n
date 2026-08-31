@@ -1355,3 +1355,12 @@ h1, h2, h3 {
 @media (max-width: 640px) {
   .review-facts { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- profile links editor ---------- */
+
+.link-rows { display: grid; gap: 10px; margin-top: 4px; }
+.link-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 8px; align-items: center; }
+@media (max-width: 640px) {
+  .link-row { grid-template-columns: 1fr auto; }
+  .link-row input[type="url"] { grid-column: 1 / -1; }
+}

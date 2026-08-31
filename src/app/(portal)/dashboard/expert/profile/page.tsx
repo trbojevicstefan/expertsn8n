@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CheckCircle2, ExternalLink } from "lucide-react";
 import { getSession } from "@/lib/auth/server";
 import { ProfileEditor } from "@/components/profile-editor";
-import { completeness, documentsForUid, expertProfileForUid, MISSING_FIELD_LABELS } from "@/lib/expert-account";
+import { completenessDetail, documentsForUid, expertProfileForUid } from "@/lib/expert-account";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +51,7 @@ export default async function ExpertProfilePage({
   }
 
   const documents = await documentsForUid(session.uid);
-  const pct = completeness(profile);
-  const missing = (profile.missingFields || []).map((f) => MISSING_FIELD_LABELS[f] || f);
+  const { pct, gaps } = completenessDetail(profile);
 
   return (
     <>
@@ -91,10 +90,12 @@ export default async function ExpertProfilePage({
           </span>
         </div>
         <div className="completeness-bar"><span style={{ width: `${pct}%` }} /></div>
-        {missing.length > 0 && (
+        {gaps.length > 0 ? (
           <p className="completeness-missing">
-            Still outstanding: {missing.join(", ")}.
+            To reach 100%, still needed: {gaps.join(", ")}.
           </p>
+        ) : (
+          <p className="completeness-missing">Everything on your public profile is filled in.</p>
         )}
       </div>
 

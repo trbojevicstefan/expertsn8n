@@ -14,6 +14,17 @@ const schema = z.object({
   availability: z.string().max(80),
   skills: z.array(z.string().min(1).max(48)).max(20),
   integrations: z.array(z.string().min(1).max(48)).max(20),
+  links: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(40),
+        // Only http(s): a javascript: or data: URL here would be rendered as an
+        // anchor on the public profile.
+        url: z.string().url().max(300).refine((u) => /^https?:\/\//i.test(u), "Links must start with http:// or https://"),
+      }),
+    )
+    .max(8)
+    .default([]),
 });
 
 export async function POST(req: Request) {

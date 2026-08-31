@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ref, uploadBytes } from "firebase/storage";
-import { AlertTriangle, CheckCircle2, FileText, Trash2, Upload, UserRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Plus, Trash2, Upload, UserRound } from "lucide-react";
 import { firebaseStorage } from "@/lib/firebase/client";
 import type { ExpertDocument, ExpertProfile } from "@/lib/types";
 
@@ -42,6 +42,7 @@ export function ProfileEditor({
     skills: (profile.skills || []).join(", "),
     integrations: (profile.integrations || []).join(", "),
   });
+  const [links, setLinks] = useState<{ label: string; url: string }[]>(profile.links || []);
   const [photoUrl, setPhotoUrl] = useState(profile.photoUrl || "");
   const [documents, setDocuments] = useState(initialDocuments);
   const [docKind, setDocKind] = useState<string>("cv");
@@ -63,6 +64,7 @@ export function ProfileEditor({
           hourlyRate: Number(form.hourlyRate) || 0,
           skills: form.skills.split(",").map((s) => s.trim()).filter(Boolean),
           integrations: form.integrations.split(",").map((s) => s.trim()).filter(Boolean),
+          links: links.filter((l) => l.label.trim() && l.url.trim()),
         }),
       });
       const data = await res.json();
@@ -227,6 +229,55 @@ export function ProfileEditor({
             <input id="pe-int" className="input" value={form.integrations} onChange={(e) => set("integrations", e.target.value)} />
           </div>
         </div>
+      </div>
+
+      <div className="form-section">
+        <h2>Links</h2>
+        <p>
+          Your portfolio, GitHub, LinkedIn or a demo. These appear on your public profile — which is why
+          links are stripped out of the bio.
+        </p>
+        {links.length > 0 && (
+          <div className="link-rows">
+            {links.map((l, i) => (
+              <div className="link-row" key={i}>
+                <input
+                  className="input"
+                  placeholder="Label (e.g. GitHub)"
+                  value={l.label}
+                  aria-label={`Link ${i + 1} label`}
+                  onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                />
+                <input
+                  className="input"
+                  type="url"
+                  placeholder="https://…"
+                  value={l.url}
+                  aria-label={`Link ${i + 1} URL`}
+                  onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
+                />
+                <button
+                  type="button"
+                  className="button button-secondary button-sm"
+                  onClick={() => setLinks(links.filter((_, j) => j !== i))}
+                  aria-label={`Remove link ${i + 1}`}
+                >
+                  <Trash2 size={14} strokeWidth={2.2} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {links.length < 8 && (
+          <button
+            type="button"
+            className="button button-secondary"
+            style={{ marginTop: links.length ? 12 : 4 }}
+            onClick={() => setLinks([...links, { label: "", url: "" }])}
+          >
+            <Plus size={16} strokeWidth={2.2} />Add a link
+          </button>
+        )}
       </div>
 
       <div className="form-section">

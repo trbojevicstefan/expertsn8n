@@ -30,16 +30,30 @@ export async function documentsForUid(uid: string): Promise<ExpertDocument[]> {
     .sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)));
 }
 
+/**
+ * Which public-facing fields are filled in, and which are not.
+ *
+ * Returns the gaps by name rather than just a number: a bare percentage that
+ * will not move leaves people guessing which field is holding it back.
+ */
+export function completenessDetail(profile: ExpertProfile): { pct: number; gaps: string[] } {
+  const checks: [string, boolean][] = [
+    ["Profile photo", Boolean(profile.photoUrl)],
+    ["A bio of at least a short paragraph", Boolean(profile.bio && profile.bio.length > 80)],
+    ["Location", Boolean(profile.location)],
+    ["Reference hourly rate", Boolean(profile.hourlyRate && profile.hourlyRate > 0)],
+    ["Availability", Boolean(profile.availability)],
+    ["Skills", Boolean(profile.skills?.length)],
+    ["At least one link", Boolean(profile.links?.length)],
+  ];
+  const done = checks.filter(([, ok]) => ok).length;
+  return {
+    pct: Math.round((done / checks.length) * 100),
+    gaps: checks.filter(([, ok]) => !ok).map(([label]) => label),
+  };
+}
+
 /** Percentage of the public-facing fields that are actually filled in. */
 export function completeness(profile: ExpertProfile): number {
-  const checks = [
-    Boolean(profile.photoUrl),
-    Boolean(profile.bio && profile.bio.length > 80),
-    Boolean(profile.location),
-    Boolean(profile.hourlyRate && profile.hourlyRate > 0),
-    Boolean(profile.availability),
-    Boolean(profile.skills?.length),
-    Boolean(profile.links?.length),
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  return completenessDetail(profile).pct;
 }
