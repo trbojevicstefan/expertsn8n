@@ -112,6 +112,8 @@ export interface ContractMilestone {
   submittedAt?: string | null;
   releasedAt?: string | null;
   refundedAt?: string | null;
+  changeRequestedAt?: string | null;
+  changeRequestNote?: string | null;
   submissionNote?: string;
 }
 
@@ -132,6 +134,9 @@ export interface Contract {
    *  guard applies and file exchange stays closed. */
   messagingUnlockedAt: string | null;
   milestones: ContractMilestone[];
+  cancelledAt?: string | null;
+  cancelledByUid?: string | null;
+  cancellationReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -143,6 +148,44 @@ export interface ContractMessage {
   authorRole: "client" | "expert" | "admin";
   authorName: string;
   body: string;
+  createdAt: string;
+}
+
+export type ContractActivityType =
+  | "CONTRACT_CREATED"
+  | "MILESTONE_FUNDED"
+  | "WORK_SUBMITTED"
+  | "CHANGES_REQUESTED"
+  | "RELEASE_REQUESTED"
+  | "MILESTONE_RELEASED"
+  | "DISPUTE_OPENED"
+  | "DISPUTE_RESOLVED"
+  | "CONTRACT_CANCELLED"
+  | "REVIEW_SUBMITTED";
+
+export interface ContractActivity {
+  id: string;
+  contractId: string;
+  type: ContractActivityType;
+  actorUid: string | null;
+  actorName: string;
+  milestoneId?: string | null;
+  title: string;
+  detail?: string;
+  createdAt: string;
+}
+
+export type ContractReviewDirection = "CLIENT_TO_EXPERT" | "EXPERT_TO_CLIENT";
+
+export interface ContractReview {
+  id: string;
+  contractId: string;
+  reviewerUid: string;
+  revieweeUid: string;
+  revieweeExpertId?: string | null;
+  direction: ContractReviewDirection;
+  rating: number;
+  comment: string;
   createdAt: string;
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
+import { recordContractActivity } from "@/lib/contract-activity";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import { paymentProvider } from "@/lib/payments";
@@ -150,6 +151,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     reason: `${input.resolution}${input.outcome !== "none" ? ` (milestone ${input.outcome})` : ""}`,
     createdAt: nowIso,
   });
+
+  if (ticket.contractId && ticket.kind === "DISPUTE" && ["RESOLVED", "CLOSED"].includes(input.state)) {
+    await recordContractActivity({
+      contractId: ticket.contractId,
+      type: "DISPUTE_RESOLVED",
+      actorUid: session.uid,
+      actorName: "Marketplace support",
+      milestoneId: ticket.milestoneId || null,
+      title: `Dispute ${input.state === "RESOLVED" ? "resolved" : "closed"}`,
+      detail: `${input.resolution}${input.outcome !== "none" ? ` Outcome: ${input.outcome}.` : ""}`.trim(),
+      createdAt: nowIso,
+    });
+  }
 
   await notifyUser(ticket.raisedByUid, {
     type: "REVIEW_DECISION",

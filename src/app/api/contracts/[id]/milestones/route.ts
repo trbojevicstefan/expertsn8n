@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
+import { recordContractActivity } from "@/lib/contract-activity";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { evaluateMilestoneAction } from "@/lib/marketplace-policy";
 import { notifyUser } from "@/lib/notifications";
@@ -11,7 +12,7 @@ import type { Contract, ContractMilestone } from "@/lib/types";
 
 const schema = z.object({
   milestoneId: z.string().min(1),
-  action: z.enum(["fund", "submit", "release"]),
+  action: z.enum(["fund", "submit", "request_changes", "release"]),
   note: z.string().max(2000).default(""),
 });
 
@@ -42,6 +43,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!isClient && !isExpert && !session.admin) {
     return NextResponse.json({ error: "This contract is not yours." }, { status: 403 });
   }
+  if (contract.status !== "ACTIVE") {
+    return NextResponse.json({ error: "This contract is no longer active." }, { status: 409 });
+  }
 
   const milestones = [...(contract.milestones || [])];
   const idx = milestones.findIndex((m) => m.id === input.milestoneId);
@@ -59,16 +63,68 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: policy.message }, { status: policy.status });
   }
 
+  const actorName = session.name || session.email;
+
   if (input.action === "submit") {
     const nowIso = new Date().toISOString();
-    milestones[idx] = { ...milestone, status: "SUBMITTED", submittedAt: nowIso, submissionNote: input.note };
+    milestones[idx] = {
+      ...milestone,
+      status: "SUBMITTED",
+      submittedAt: nowIso,
+      submissionNote: input.note,
+      changeRequestNote: null,
+    };
     await ref.set({ milestones, updatedAt: nowIso }, { merge: true });
+    await recordContractActivity({
+      contractId: contract.id,
+      type: "WORK_SUBMITTED",
+      actorUid: session.uid,
+      actorName,
+      milestoneId: milestone.id,
+      title: `Work submitted: ${milestone.title}`,
+      detail: input.note || "Ready for client review.",
+      createdAt: nowIso,
+    });
     await notifyUser(contract.clientId, {
       type: "MESSAGE",
       title: `Work submitted on ${contract.jobTitle}`,
       body: input.note.slice(0, 160) || `"${milestone.title}" is ready for your review.`,
       href: `/contracts/${contract.id}`,
     });
+    return NextResponse.json({ ok: true, milestones });
+  }
+
+  if (input.action === "request_changes") {
+    const note = input.note.trim();
+    if (note.length < 10) {
+      return NextResponse.json({ error: "Describe the requested changes in at least 10 characters." }, { status: 400 });
+    }
+    const nowIso = new Date().toISOString();
+    milestones[idx] = {
+      ...milestone,
+      status: "CHANGES_REQUESTED",
+      changeRequestedAt: nowIso,
+      changeRequestNote: note,
+    };
+    await ref.set({ milestones, updatedAt: nowIso }, { merge: true });
+    await recordContractActivity({
+      contractId: contract.id,
+      type: "CHANGES_REQUESTED",
+      actorUid: session.uid,
+      actorName,
+      milestoneId: milestone.id,
+      title: `Changes requested: ${milestone.title}`,
+      detail: note,
+      createdAt: nowIso,
+    });
+    if (contract.expertUid) {
+      await notifyUser(contract.expertUid, {
+        type: "MESSAGE",
+        title: `Changes requested on ${contract.jobTitle}`,
+        body: note.slice(0, 160),
+        href: `/contracts/${contract.id}`,
+      });
+    }
     return NextResponse.json({ ok: true, milestones });
   }
 
@@ -147,6 +203,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
 
     if (release.status === "PENDING") {
+      await recordContractActivity({
+        contractId: contract.id,
+        type: "RELEASE_REQUESTED",
+        actorUid: session.uid,
+        actorName,
+        milestoneId: milestone.id,
+        title: `Release requested: ${milestone.title}`,
+        detail: "Waiting for payment provider confirmation.",
+      });
       return NextResponse.json(
         { ok: true, paymentStatus: "RELEASE_PENDING", providerActionId: release.providerActionId },
         { status: 202 },
