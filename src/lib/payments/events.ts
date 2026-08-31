@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
-import { confirmedPaymentTransition, type ConfirmedPaymentEventKind, type PaymentStatus } from "./state";
+import {
+  confirmedPaymentTransition,
+  effectivePaymentStatus,
+  type ConfirmedPaymentEventKind,
+  type PaymentStatus,
+} from "./state";
 import type { Contract, ContractMilestone } from "@/lib/types";
 
 export interface ConfirmedProviderPaymentEvent {
@@ -25,18 +30,6 @@ export interface ProcessPaymentEventResult {
 
 function docKey(value: string): string {
   return createHash("sha256").update(value).digest("hex");
-}
-
-function currentPaymentStatus(milestone: ContractMilestone): PaymentStatus {
-  if (milestone.paymentStatus) return milestone.paymentStatus;
-  if (milestone.status === "RELEASED") return "RELEASED";
-  if (milestone.status === "REFUNDED") return "REFUNDED";
-  if (milestone.status === "RELEASE_PENDING") return "RELEASE_PENDING";
-  if (milestone.status === "REFUND_PENDING") return "REFUND_PENDING";
-  if (["FUNDED", "IN_PROGRESS", "SUBMITTED", "CHANGES_REQUESTED", "DISPUTED"].includes(milestone.status)) {
-    return "FUNDED";
-  }
-  return "UNFUNDED";
 }
 
 /**
@@ -97,7 +90,7 @@ export async function processConfirmedProviderPaymentEvent(
     const milestone = milestones[idx]!;
     if (milestone.amount !== event.amount) throw new Error("Provider event amount does not match milestone amount.");
 
-    const transition = confirmedPaymentTransition(currentPaymentStatus(milestone), event.kind);
+    const transition = confirmedPaymentTransition(effectivePaymentStatus(milestone), event.kind);
     const nowIso = new Date().toISOString();
     const occurredAt = Number.isNaN(Date.parse(event.occurredAt)) ? nowIso : new Date(event.occurredAt).toISOString();
 
@@ -129,7 +122,11 @@ export async function processConfirmedProviderPaymentEvent(
     if (event.kind === "RELEASE_CONFIRMED") {
       const following = milestones[idx + 1];
       if (following && following.status === "DRAFT") {
-        milestones[idx + 1] = { ...following, status: "AWAITING_FUNDING", paymentStatus: following.paymentStatus || "UNFUNDED" };
+        milestones[idx + 1] = {
+          ...following,
+          status: "AWAITING_FUNDING",
+          paymentStatus: following.paymentStatus || "UNFUNDED",
+        };
       }
       if (milestones.every((m) => m.status === "RELEASED")) contractPatch.status = "COMPLETED";
     }
