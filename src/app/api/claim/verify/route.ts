@@ -4,6 +4,7 @@ import { z } from "zod";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { claimCodeMatches, normalizeEmail } from "@/lib/claim-code";
 import { CLAIM_COOKIE, CLAIM_TTL_MS, claimDocId, claimSessionDocId } from "@/lib/claim-session";
+import { clientAddress, enforceRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   email: z.string().email(),
@@ -19,6 +20,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Claiming is not available right now." }, { status: 503 });
   }
 
+  const ip = clientAddress(req);
+  const ipLimited = await enforceRateLimit({
+    scope: "claim.verify.ip",
+    identity: ip,
+    limit: 30,
+    windowMs: 15 * 60 * 1000,
+    message: "Too many claim attempts from this connection. Try again later.",
+  });
+  if (ipLimited) return ipLimited;
+
   let input: z.infer<typeof schema>;
   try {
     input = schema.parse(await req.json());
@@ -27,6 +38,18 @@ export async function POST(req: Request) {
   }
 
   const email = normalizeEmail(input.email);
+  // The target-only bucket still protects a seeded email if an attacker rotates
+  // or spoofs network addresses; combining it with the IP bucket also stops a
+  // single connection from spraying many candidate accounts.
+  const targetLimited = await enforceRateLimit({
+    scope: "claim.verify.email",
+    identity: email,
+    limit: 8,
+    windowMs: 15 * 60 * 1000,
+    message: "Too many attempts for this claim. Try again later.",
+  });
+  if (targetLimited) return targetLimited;
+
   const db = adminDb();
   const claimRef = db.collection("claimCodes").doc(claimDocId(email));
   const claimSnap = await claimRef.get();

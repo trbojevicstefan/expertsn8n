@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { evaluateMilestoneAction } from "@/lib/marketplace-policy";
 import { notifyUser } from "@/lib/notifications";
 import { paymentProvider } from "@/lib/payments";
 import type { Contract, ContractMilestone } from "@/lib/types";
@@ -45,17 +46,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (idx < 0) return NextResponse.json({ error: "Milestone not found." }, { status: 404 });
 
   const milestone = milestones[idx] as ContractMilestone;
+  const policy = evaluateMilestoneAction({
+    action: input.action,
+    milestoneStatus: milestone.status,
+    isClient,
+    isExpert,
+    isAdmin: Boolean(session.admin),
+  });
+  if (!policy.ok) {
+    return NextResponse.json({ error: policy.message }, { status: policy.status });
+  }
+
   const nowIso = new Date().toISOString();
   const patch: Record<string, unknown> = { updatedAt: nowIso };
 
   if (input.action === "fund") {
-    if (!isClient && !session.admin) {
-      return NextResponse.json({ error: "Only the client funds a milestone." }, { status: 403 });
-    }
-    if (!["DRAFT", "AWAITING_FUNDING"].includes(milestone.status)) {
-      return NextResponse.json({ error: "This milestone is not awaiting funding." }, { status: 409 });
-    }
-
     // Funding state is provider-confirmed rather than assumed from a redirect.
     const funding = await paymentProvider().createFundingSession({
       milestoneId: milestone.id,
@@ -65,11 +70,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       currency: contract.currency,
     });
     if (funding.status !== "FUNDED") {
-      return NextResponse.json({ error: "The payment provider did not confirm funding.", checkoutUrl: funding.checkoutUrl }, { status: 402 });
+      return NextResponse.json(
+        { error: "The payment provider did not confirm funding.", checkoutUrl: funding.checkoutUrl },
+        { status: 402 },
+      );
     }
 
     milestones[idx] = { ...milestone, status: "FUNDED", fundedAt: nowIso };
-    // First funding is what opens messaging for both sides.
     if (!contract.messagingUnlockedAt) patch.messagingUnlockedAt = nowIso;
 
     if (contract.expertUid) {
@@ -83,12 +90,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (input.action === "submit") {
-    if (!isExpert && !session.admin) {
-      return NextResponse.json({ error: "Only the expert submits work." }, { status: 403 });
-    }
-    if (!["FUNDED", "IN_PROGRESS", "CHANGES_REQUESTED"].includes(milestone.status)) {
-      return NextResponse.json({ error: "This milestone is not funded yet." }, { status: 409 });
-    }
     milestones[idx] = { ...milestone, status: "SUBMITTED", submittedAt: nowIso, submissionNote: input.note };
     await notifyUser(contract.clientId, {
       type: "MESSAGE",
@@ -99,13 +100,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (input.action === "release") {
-    if (!isClient && !session.admin) {
-      return NextResponse.json({ error: "Only the client releases funds." }, { status: 403 });
-    }
-    if (milestone.status !== "SUBMITTED") {
-      return NextResponse.json({ error: "Nothing has been submitted for this milestone." }, { status: 409 });
-    }
-
     const release = await paymentProvider().releaseFunds({
       milestoneId: milestone.id,
       contractId: contract.id,
@@ -119,7 +113,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     milestones[idx] = { ...milestone, status: "RELEASED", releasedAt: nowIso };
 
-    // The next milestone becomes fundable once the previous one is settled.
     const next = milestones[idx + 1];
     if (next && next.status === "DRAFT") milestones[idx + 1] = { ...next, status: "AWAITING_FUNDING" };
     if (milestones.every((m) => m.status === "RELEASED")) patch.status = "COMPLETED";

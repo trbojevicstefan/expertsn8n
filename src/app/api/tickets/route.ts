@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyAdmins } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type { Contract } from "@/lib/types";
 
 const schema = z.object({
@@ -23,6 +24,15 @@ export async function POST(req: Request) {
   if (!firebaseAdminConfigured) {
     return NextResponse.json({ error: "Support is not available right now." }, { status: 503 });
   }
+
+  const limited = await enforceRateLimit({
+    scope: "support.ticket.create.user",
+    identity: session.uid,
+    limit: 6,
+    windowMs: 60 * 60 * 1000,
+    message: "Too many support requests were opened recently. Try again later.",
+  });
+  if (limited) return limited;
 
   let input: z.infer<typeof schema>;
   try {
@@ -52,7 +62,6 @@ export async function POST(req: Request) {
     const idx = milestones.findIndex((m) => m.id === input.milestoneId);
     if (idx >= 0) {
       amountAtRisk = milestones[idx]!.amount ?? null;
-      // Freeze it: a disputed milestone must not be releasable while open.
       milestones[idx] = { ...milestones[idx]!, status: "DISPUTED" };
       await snap.ref.set({ milestones, updatedAt: nowIso }, { merge: true });
     }

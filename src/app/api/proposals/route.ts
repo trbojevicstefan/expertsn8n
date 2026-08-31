@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { notifyUser } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   jobId: z.string().min(3).max(200),
@@ -21,6 +22,15 @@ export async function POST(req: Request) {
   if (!firebaseAdminConfigured) {
     return NextResponse.json({ error: "Proposals are not available right now." }, { status: 503 });
   }
+
+  const limited = await enforceRateLimit({
+    scope: "proposal.create.user",
+    identity: session.uid,
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+    message: "Too many proposals submitted in a short period. Try again later.",
+  });
+  if (limited) return limited;
 
   try {
     const input = schema.parse(await req.json());
@@ -48,8 +58,6 @@ export async function POST(req: Request) {
     const nowIso = new Date().toISOString();
     const ref = db.collection("proposals").doc();
 
-    // Denormalised so both dashboards can render a row without a second read,
-    // and keyed by the account as well as the profile so each side can query it.
     await ref.set({
       ...input,
       jobTitle: job.title || "",
@@ -63,8 +71,6 @@ export async function POST(req: Request) {
       createdAt: nowIso,
     });
 
-    // The count shown on the job card was never incremented, so every job
-    // advertised zero proposals no matter how many it had.
     await jobRef.set({ proposalCount: FieldValue.increment(1), updatedAt: nowIso }, { merge: true });
 
     if (job.clientId) {

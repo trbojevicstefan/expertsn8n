@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyAdmins, notifyUser } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type { SupportTicket } from "@/lib/types";
 
 const schema = z.object({ body: z.string().min(1).max(4000) });
@@ -32,6 +33,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!isOwner && !session.admin) {
     return NextResponse.json({ error: "This ticket is not yours." }, { status: 403 });
   }
+
+  const limited = await enforceRateLimit({
+    scope: "support.ticket.message.user-ticket",
+    identity: `${session.uid}:${id}`,
+    limit: 30,
+    windowMs: 60 * 1000,
+    message: "You are sending support messages too quickly. Try again shortly.",
+  });
+  if (limited) return limited;
 
   const nowIso = new Date().toISOString();
   const body = input.body.trim();

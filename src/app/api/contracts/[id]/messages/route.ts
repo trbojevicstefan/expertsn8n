@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { notifyUser } from "@/lib/notifications";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import type { Contract } from "@/lib/types";
 
 const schema = z.object({ body: z.string().min(1).max(4000) });
@@ -41,6 +42,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!isClient && !isExpert && !session.admin) {
     return NextResponse.json({ error: "This contract is not yours." }, { status: 403 });
   }
+
+  const limited = await enforceRateLimit({
+    scope: "contract.message.user-contract",
+    identity: `${session.uid}:${id}`,
+    limit: 60,
+    windowMs: 60 * 1000,
+    message: "You are sending messages too quickly. Try again in a moment.",
+  });
+  if (limited) return limited;
 
   const body = input.body.trim();
   if (!contract.messagingUnlockedAt) {
