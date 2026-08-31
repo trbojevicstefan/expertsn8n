@@ -9,6 +9,9 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 }
 
+/** Formatted in the reader's own locale and timezone, which the server cannot
+ *  know. The server and client therefore render different text on purpose, so
+ *  the mismatch is declared rather than left to trip hydration. */
 function when(iso: string) {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -89,7 +92,7 @@ export function MessageThread({
                 <div className="thread-meta">
                   <strong>{m.authorName}</strong>
                   {m.authorRole === "admin" && <span className="thread-tag">Review team</span>}
-                  <time>{when(m.createdAt)}</time>
+                  <time suppressHydrationWarning>{when(m.createdAt)}</time>
                 </div>
                 <p>{m.body}</p>
               </div>

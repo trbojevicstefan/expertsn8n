@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
-import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { notifyAdmins } from "@/lib/notifications";
 
@@ -97,6 +97,21 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Not your showcase." }, { status: 403 });
   }
 
+  // Remove the uploaded files too, or they linger in Storage with nothing
+  // pointing at them and no way for the expert to reach them again.
+  const attachments = ((snap.data() || {}).attachments || []) as { storagePath?: string }[];
+  await Promise.all(
+    attachments
+      .filter((a) => a.storagePath)
+      .map(async (a) => {
+        try {
+          await adminStorage().bucket().file(a.storagePath!).delete();
+        } catch {
+          /* already gone */
+        }
+      }),
+  );
+
   await ref.delete();
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, removedFiles: attachments.length });
 }

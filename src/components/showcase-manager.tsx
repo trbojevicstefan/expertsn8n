@@ -205,7 +205,7 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
         <EmptyState
           icon={<Workflow size={22} strokeWidth={1.9} />}
           title="No showcases yet"
-          body="A showcase is what gets a profile taken seriously: the business problem, the architecture, the integrations, how failures are handled and what changed for the client. At least one is required before a profile can be verified."
+          body="A showcase is what gets a profile taken seriously: the business problem, the architecture, the integrations, how failures are handled and what changed for the client. Create one first, then attach screenshots and your exported n8n workflow JSON to it. At least one showcase is required before a profile can be verified."
         />
       ) : (
         <div className="showcase-grid">
