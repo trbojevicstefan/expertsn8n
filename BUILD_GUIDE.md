@@ -20,6 +20,7 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - Explicit milestone payment state separate from work-delivery state
 - Provider-confirmed money-event processor with idempotent provider receipts and atomic ledger writes
 - Contract activity timeline and completed-contract reviews
+- Explicit proposal and private-invite lifecycle policies
 - Zod validation on important write endpoints
 - Firestore-backed distributed rate limiting for sensitive write endpoints
 - GitHub Actions CI for tests, typecheck, lint and production build
@@ -31,8 +32,10 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - [x] Expert onboarding, profile editing, CV/documents and profile photo flow
 - [x] Expert verification/admin review surfaces
 - [x] Workflow showcase creation, attachments and moderation surfaces
-- [x] Public/private jobs, job creation and expert invites
-- [x] Expert proposal submission with anti-circumvention validation
+- [x] Public/private jobs, job creation, edit/close/reopen and expert invites
+- [x] Invite accept/decline and private-job access gating
+- [x] Expert proposal submission/withdrawal with anti-circumvention validation
+- [x] Client shortlist/decline and proposal acceptance into a contract
 - [x] Proposal acceptance creates a contract and milestone plan
 - [x] Contract workspace with payment-gated messaging, milestone submission/release, change requests and disputes
 - [x] Completed-contract reviews and contract activity timeline
@@ -77,12 +80,12 @@ The mock provider is useful for development but **must never be treated as real 
 
 ## P1 - Jobs, proposals and invitations
 
-- [ ] Add proposal withdraw flow for experts while proposal is still actionable.
-- [ ] Add client shortlist/decline actions and corresponding notifications.
-- [ ] Add job edit flow while draft/open, with server ownership enforcement.
-- [ ] Add job close/cancel flow and automatically stop new proposals.
-- [ ] Improve private jobs so only invited experts can view/apply.
-- [ ] Add invite accept/decline state instead of treating invitations as display-only records.
+- [x] Add proposal withdraw flow for experts while proposal is still actionable.
+- [x] Add client shortlist/decline actions and corresponding notifications.
+- [x] Add job edit flow while draft/open, with server ownership enforcement.
+- [x] Add job close/cancel flow and automatically stop new proposals. `FILLED` is system-owned and cannot be manually set/reopened around an active contract.
+- [x] Improve private jobs so only invited experts can view/apply. `SENT` may view; only a non-expired `ACCEPTED` invite may apply.
+- [x] Add invite accept/decline state instead of treating invitations as display-only records.
 - [ ] Add pagination for expert directory, jobs, proposals, notifications, admin queues and support tickets.
 - [ ] Add server-side search/filter indexes for expert skills/integrations and jobs.
 
@@ -139,13 +142,13 @@ The mock provider is useful for development but **must never be treated as real 
 - [ ] Add immutable `auditEvents` collection for privileged state changes.
 - [x] Add immutable `ledgerEntries` schema with unique provider event/action IDs.
 - [x] Add `reviews` collection linked to contract + reviewer + reviewee with one-review-per-side constraint.
-- [ ] Add `invites` lifecycle statuses and timestamps.
+- [x] Add `invites` lifecycle statuses and timestamps. Invitations persist `SENT`, `ACCEPTED` or `DECLINED` plus expiry/responded/accepted/declined timestamps; expiry is enforced at read/action time.
 - [ ] Add explicit payment/payout status fields rather than deriving money truth only from milestone UI state. Explicit payment status is complete; payout onboarding/status still remains.
 - [ ] Add migration/backfill scripts for every schema change that affects existing data. Payment reads include a backwards-compatible legacy status mapper, but no destructive backfill is required yet.
 
 ## Test plan
 
-- [ ] Unit tests: contact guard, claim-code hashing/verification, workflow parser, money helpers and state transition rules. Payment, proposal, milestone, change-request and cancellation transition coverage exists; remaining listed units stay open.
+- [ ] Unit tests: contact guard, claim-code hashing/verification, workflow parser, money helpers and state transition rules. Payment, proposal, invite, private-job, milestone, change-request and cancellation transition coverage exists; remaining listed units stay open.
 - [ ] API tests: unauthenticated, wrong role, wrong owner, invalid input and happy path for every sensitive route.
 - [ ] Transaction tests: concurrent proposal acceptance and duplicate payment webhook handling. Pure policy/idempotency behavior exists; Firestore/emulator concurrency coverage stays open.
 - [ ] Firebase emulator tests for Firestore/Storage/Realtime Database security rules.
@@ -180,22 +183,24 @@ A task can be checked only when all applicable conditions are true:
 
 ## Current implementation sprint
 
-Working branch: `build/p1-contract-completion`
+Working branch: `build/p1-jobs-proposals-invites`
 
-- [x] Add client `Request changes` and expert resubmission lifecycle.
-- [x] Add money-safe direct cancellation and force funded/pending cases into disputes.
-- [x] Reopen the job/proposal when an unfunded contract is cancelled.
-- [x] Add contract activity records and workspace timeline.
-- [x] Add one final review per side after completion.
-- [x] Recalculate expert rating/review count from completed-contract client reviews.
-- [x] Increment expert `completedProjects` exactly once when the final release is provider-confirmed.
-- [x] Record dispute open/resolution and provider-confirmed funding/release/refund in the timeline.
-- [ ] Add contract file exchange and submission attachments/delivery history.
+- [x] Add expert proposal withdrawal before a proposal becomes terminal.
+- [x] Add client shortlist/decline and notifications.
+- [x] Add private invitation accept/decline with response timestamps.
+- [x] Make private jobs viewable only to owner/admin or a live invited expert.
+- [x] Require accepted invitation independently in the proposal API before private-job application.
+- [x] Keep private jobs out of public/SEO lookup.
+- [x] Add owner-only job edit for DRAFT/OPEN jobs and lock visibility after proposals exist.
+- [x] Make job close/reopen safe and keep `FILLED` controlled only by proposal acceptance/contract lifecycle.
+- [x] Add client/expert lifecycle UI for edit, close/reopen, invites and proposals.
+- [x] Block new in-app invitations to unclaimed or suspended expert profiles and allow a fresh invite after an old invite was declined/expired.
+- [ ] Add pagination and indexed marketplace search/filtering.
 
 ### Validation note
 
-The tests/rate-limit sprint established Node 22 automated policy tests and the CI gate. The payment-core sprint added provider-confirmed state and ledger tests. The contract-completion sprint increases the stacked suite to 20 tests, including change-request authorization/state and cancellation money-safety coverage.
+The stacked CI suite now contains 24 policy tests. This sprint adds proposal lifecycle, invitation ownership/expiry and private-job access tests on top of the payment, contract and rate-limit coverage.
 
-During validation, TypeScript found a transaction-closure narrowing issue in the new cancellation route after all 20 tests had already passed. The route was corrected to carry only notification metadata out of the transaction. The subsequent CI run passed all 20 tests, typecheck, lint and the production Next.js build before these contract-workspace items were checked.
+The final code run passed `npm ci`, all lifecycle tests, typecheck, lint and the production Next.js build. The private-job rules are enforced twice: once when rendering a job and again inside proposal creation, so a client-side bypass cannot turn a `SENT`, declined or expired invite into an application.
 
 The provider comparison is intentionally not the same as provider selection. Current public eligibility documentation must be rechecked against the actual legal entity and launch countries before the real adapter, webhook and payout flows can be implemented.
