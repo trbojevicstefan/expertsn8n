@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateMilestoneAction, evaluateProposalAward } from "../src/lib/marketplace-policy.ts";
+import {
+  evaluateContractCancellation,
+  evaluateMilestoneAction,
+  evaluateProposalAward,
+} from "../src/lib/marketplace-policy.ts";
 
 const awardBase = {
   viewerUid: "client-1",
@@ -91,6 +95,41 @@ test("milestone submission is expert-only and requires funded work", () => {
   );
 });
 
+test("client can request changes only after work is submitted", () => {
+  assert.deepEqual(
+    evaluateMilestoneAction({
+      action: "request_changes",
+      milestoneStatus: "SUBMITTED",
+      isClient: true,
+      isExpert: false,
+      isAdmin: false,
+    }),
+    { ok: true },
+  );
+
+  assert.deepEqual(
+    evaluateMilestoneAction({
+      action: "request_changes",
+      milestoneStatus: "FUNDED",
+      isClient: true,
+      isExpert: false,
+      isAdmin: false,
+    }),
+    { ok: false, status: 409, message: "Changes can only be requested on submitted work." },
+  );
+
+  assert.deepEqual(
+    evaluateMilestoneAction({
+      action: "request_changes",
+      milestoneStatus: "SUBMITTED",
+      isClient: false,
+      isExpert: true,
+      isAdmin: false,
+    }),
+    { ok: false, status: 403, message: "Only the client requests changes." },
+  );
+});
+
 test("milestone release is client-only and requires a submission", () => {
   assert.equal(
     evaluateMilestoneAction({
@@ -125,5 +164,65 @@ test("outsiders cannot perform any contract milestone action", () => {
       isAdmin: false,
     }),
     { ok: false, status: 403, message: "This contract is not yours." },
+  );
+});
+
+test("unfunded contracts can be cancelled by either party", () => {
+  assert.deepEqual(
+    evaluateContractCancellation({
+      contractStatus: "ACTIVE",
+      isClient: true,
+      isExpert: false,
+      isAdmin: false,
+      paymentStatuses: ["UNFUNDED", "UNFUNDED"],
+    }),
+    { ok: true },
+  );
+  assert.deepEqual(
+    evaluateContractCancellation({
+      contractStatus: "ACTIVE",
+      isClient: false,
+      isExpert: true,
+      isAdmin: false,
+      paymentStatuses: ["RELEASED", "UNFUNDED"],
+    }),
+    { ok: true },
+  );
+});
+
+test("contracts with money at risk require dispute instead of cancellation", () => {
+  for (const paymentStatus of ["PENDING", "FUNDED", "RELEASE_PENDING", "REFUND_PENDING"]) {
+    const result = evaluateContractCancellation({
+      contractStatus: "ACTIVE",
+      isClient: true,
+      isExpert: false,
+      isAdmin: false,
+      paymentStatuses: [paymentStatus],
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.message, /money at risk/);
+  }
+});
+
+test("completed contracts cannot be cancelled and cancelled contracts are idempotent", () => {
+  assert.deepEqual(
+    evaluateContractCancellation({
+      contractStatus: "COMPLETED",
+      isClient: true,
+      isExpert: false,
+      isAdmin: false,
+      paymentStatuses: ["RELEASED"],
+    }),
+    { ok: false, status: 409, message: "A completed contract cannot be cancelled." },
+  );
+  assert.deepEqual(
+    evaluateContractCancellation({
+      contractStatus: "CANCELLED",
+      isClient: true,
+      isExpert: false,
+      isAdmin: false,
+      paymentStatuses: ["UNFUNDED"],
+    }),
+    { ok: true, idempotent: true },
   );
 });
