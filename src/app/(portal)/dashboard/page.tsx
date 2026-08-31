@@ -1,2 +1,108 @@
-import Link from "next/link";import { ArrowUpRight, CheckCircle2, FileCheck2, MessageSquareText, Plus, UserRoundSearch } from "lucide-react";import { requireSession } from "@/lib/auth/server";import { dashboardStats } from "@/lib/demo-data";
-export default async function Dashboard(){const session=await requireSession();const client=session.role==="client";return <><div className="portal-head"><div><h1>{client?"Hiring dashboard":"Expert dashboard"}</h1><p>{client?"Track jobs, funded contracts and expert activity.":"Manage your profile, invites, proposals and active client work."}</p></div><Link href={client?"/dashboard/client/jobs/new":"/jobs"} className="button button-primary"><Plus size={16}/>{client?"Post a job":"Find projects"}</Link></div><div className="stats-grid">{dashboardStats.map(s=><div className="stat-card card" key={s.label}><span>{s.label}</span><strong>{s.value}</strong><small>{s.helper}</small></div>)}</div><div className="dashboard-grid"><section className="panel card"><div className="panel-head"><h2>Recent activity</h2><Link className="muted" href="/contracts/c-2041">View contract</Link></div><div className="activity-list"><div className="activity"><div className="activity-icon"><CheckCircle2 size={17}/></div><div><strong>Milestone funded · CRM migration</strong><span>€2,400 is secured for the active milestone.</span></div><time>18m</time></div><div className="activity"><div className="activity-icon"><MessageSquareText size={17}/></div><div><strong>New contract message</strong><span>Ana posted an implementation update.</span></div><time>2h</time></div><div className="activity"><div className="activity-icon"><FileCheck2 size={17}/></div><div><strong>New proposal received</strong><span>AI support workflow · €4,800 fixed price.</span></div><time>5h</time></div></div></section><aside className="panel card"><div className="panel-head"><h2>Quick actions</h2></div><div className="quick-list">{client?<><Link href="/dashboard/client/jobs/new">Create a job <ArrowUpRight size={15}/></Link><Link href="/experts">Browse experts <UserRoundSearch size={15}/></Link><Link href="/contracts/c-2041">Open active contract <ArrowUpRight size={15}/></Link></>:<><Link href="/dashboard/expert/profile">Complete profile <ArrowUpRight size={15}/></Link><Link href="/dashboard/expert/showcases">Add showcase <ArrowUpRight size={15}/></Link><Link href="/jobs">Browse jobs <ArrowUpRight size={15}/></Link></>}</div></aside></div></>}
+import Link from "next/link";
+import { Inbox, Plus, UserRoundSearch } from "lucide-react";
+import { requireSession } from "@/lib/auth/server";
+import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { EmptyState } from "@/components/empty-state";
+
+export const dynamic = "force-dynamic";
+
+async function countWhere(collection: string, field: string, value: string): Promise<number> {
+  if (!firebaseAdminConfigured) return 0;
+  try {
+    const snap = await adminDb().collection(collection).where(field, "==", value).count().get();
+    return snap.data().count;
+  } catch {
+    // Collection does not exist yet — that is a real zero, not an error.
+    return 0;
+  }
+}
+
+export default async function Dashboard() {
+  const session = await requireSession();
+  const client = session.role === "client";
+
+  const stats = client
+    ? [
+        { label: "Jobs posted", value: await countWhere("jobs", "clientId", session.uid), helper: "Across all statuses" },
+        { label: "Proposals received", value: await countWhere("proposals", "clientId", session.uid), helper: "Awaiting your review" },
+        { label: "Active contracts", value: await countWhere("contracts", "clientId", session.uid), helper: "Funded and in progress" },
+      ]
+    : [
+        { label: "Invitations", value: await countWhere("jobInvites", "expertUid", session.uid), helper: "Private job invites" },
+        { label: "Proposals sent", value: await countWhere("proposals", "expertUid", session.uid), helper: "Across all jobs" },
+        { label: "Active contracts", value: await countWhere("contracts", "expertUid", session.uid), helper: "Funded and in progress" },
+      ];
+
+  const nothingYet = stats.every((s) => s.value === 0);
+
+  return (
+    <>
+      <div className="portal-head">
+        <div>
+          <h1>{client ? "Hiring dashboard" : "Expert dashboard"}</h1>
+          <p>
+            {client
+              ? "Track jobs, funded contracts and expert activity."
+              : "Manage your profile, invites, proposals and active client work."}
+          </p>
+        </div>
+        <Link href={client ? "/dashboard/client/jobs/new" : "/jobs"} className="button button-primary">
+          <Plus size={16} strokeWidth={2.2} />
+          {client ? "Post a job" : "Find projects"}
+        </Link>
+      </div>
+
+      <div className="stats-grid stats-grid-3">
+        {stats.map((s) => (
+          <div className="stat-card card" key={s.label}>
+            <span>{s.label}</span>
+            <strong>{s.value}</strong>
+            <small>{s.helper}</small>
+          </div>
+        ))}
+      </div>
+
+      {nothingYet ? (
+        <EmptyState
+          icon={client ? <Plus size={22} strokeWidth={1.9} /> : <UserRoundSearch size={22} strokeWidth={1.9} />}
+          title={client ? "No activity yet" : "Nothing in your queue yet"}
+          body={
+            client
+              ? "Post your first job and reviewed experts can start submitting proposals. Posting is free and takes about four minutes."
+              : "You have no invitations or proposals yet. Browse open projects, and make sure your profile is complete so clients can find you."
+          }
+          action={client ? { label: "Post a job", href: "/dashboard/client/jobs/new" } : { label: "Browse open projects", href: "/jobs" }}
+        />
+      ) : (
+        <div className="dashboard-grid">
+          <section className="panel card">
+            <div className="panel-head"><h2>Recent activity</h2></div>
+            <EmptyState
+              icon={<Inbox size={20} strokeWidth={1.9} />}
+              title="No activity to show"
+              body="Contract events, milestone funding and messages will appear here as they happen."
+            />
+          </section>
+          <section className="panel card">
+            <div className="panel-head"><h2>Quick actions</h2></div>
+            <div className="quick-list">
+              {client ? (
+                <>
+                  <Link href="/dashboard/client/jobs/new">Post a job<span>→</span></Link>
+                  <Link href="/experts">Browse experts<span>→</span></Link>
+                  <Link href="/dashboard/client/jobs">My jobs<span>→</span></Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/dashboard/expert/profile">Complete your profile<span>→</span></Link>
+                  <Link href="/jobs">Find projects<span>→</span></Link>
+                  <Link href="/dashboard/expert/showcases">Add a showcase<span>→</span></Link>
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}

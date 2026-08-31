@@ -5,9 +5,10 @@ import {
   Sparkles, Target, UserCheck, Users, Workflow,
 } from "lucide-react";
 import {
-  caseStudies, comparisonRows, differentiators, faqs, howItWorks,
-  integrationLogos, pricing, testimonials, trustStats, useCases, vettingSteps,
+  comparisonRows, differentiators, faqs, howItWorks,
+  integrationLogos, pricing, useCases, vettingSteps,
 } from "@/lib/site-content";
+import type { MarketplaceStats } from "@/lib/data";
 
 const icons = {
   target: Target, eye: Eye, shield: ShieldCheck, scale: Scale,
@@ -28,7 +29,7 @@ export function AnnounceBar() {
       <div className="container">
         <span className="announce-dot" />
         <span>
-          <strong>Applications are reviewed manually.</strong> 47 profiles submitted this month, 5 published.{" "}
+          <strong>Applications are reviewed by a person, not a script.</strong>{" "}
           <Link href="/sign-up">Apply as an expert</Link>
         </span>
       </div>
@@ -36,11 +37,23 @@ export function AnnounceBar() {
   );
 }
 
-export function TrustBar() {
+/**
+ * Every figure here is counted from the live directory. The marketplace has no
+ * contract history yet, so there is nothing about funded value or ratings to
+ * show — and inventing one would be the easiest lie on the page.
+ */
+export function TrustBar({ stats }: { stats: MarketplaceStats }) {
+  const items = [
+    { value: String(stats.experts), label: "n8n specialists listed", helper: "Every one applied directly to us" },
+    { value: String(stats.countries), label: "Countries represented", helper: "Across European and global timezones" },
+    { value: String(stats.specialisms), label: "Distinct skills covered", helper: "From custom nodes to voice agents" },
+    { value: String(stats.claimed), label: "Profiles claimed", helper: "Owned and maintained by the expert" },
+  ];
+
   return (
     <section className="trustbar" aria-label="Marketplace at a glance">
       <div className="container">
-        {trustStats.map((s) => (
+        {items.map((s) => (
           <div className="trustbar-item" key={s.label}>
             <strong>{s.value}</strong>
             <b>{s.label}</b>
@@ -97,10 +110,11 @@ export function VettingSection() {
       <div className="container vetting-layout">
         <div className="vetting-aside">
           <span className="eyebrow">The review process</span>
-          <h2>Five stages. One in nine gets through.</h2>
+          <h2>Five stages before a profile is verified.</h2>
           <p>
-            Nobody buys a marketplace badge that means nothing. Here is exactly what a profile has to survive
-            before it appears in the directory, and where most applications actually fail.
+            Nobody buys a marketplace badge that means nothing. This is exactly what a profile has to survive
+            to carry one. Profiles still working through it stay listed, marked as not yet vetted, so you
+            always know which is which.
           </p>
           <div className="vetting-badge">
             <ShieldCheck size={18} strokeWidth={2} />
@@ -114,7 +128,6 @@ export function VettingSection() {
               <div className="vetting-body">
                 <h3>{v.title}</h3>
                 <p>{v.body}</p>
-                <span className="vetting-detail">{v.detail}</span>
               </div>
             </div>
           ))}
@@ -208,76 +221,6 @@ export function ProtectionBanner() {
             <span><LockKeyhole size={17} strokeWidth={2} />Contact guard before funding</span>
             <span><ScrollText size={17} strokeWidth={2} />Audit trail on every action</span>
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function CaseStudiesSection() {
-  return (
-    <section className="section section-soft">
-      <div className="container">
-        <div className="section-head">
-          <div>
-            <span className="eyebrow">Outcomes</span>
-            <h2>Three contracts, and what changed.</h2>
-          </div>
-          <p>
-            Case studies are submitted by the expert, checked against the contract record, and confirmed with
-            the client before they are published.
-          </p>
-        </div>
-        <div className="case-grid">
-          {caseStudies.map((c) => (
-            <article className="case-card card" key={c.company}>
-              <div className="case-company">
-                <div className="case-logo">{c.company.charAt(0)}</div>
-                <div>
-                  <strong>{c.company}</strong>
-                  <span>{c.sector}</span>
-                </div>
-              </div>
-              <h3>{c.title}</h3>
-              <p>{c.body}</p>
-              <div className="case-metrics">
-                {c.metrics.map((m) => (
-                  <div className="case-metric" key={m.label}>
-                    <strong>{m.value}</strong>
-                    <span>{m.label}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function TestimonialsSection() {
-  return (
-    <section className="section">
-      <div className="container">
-        <div className="section-head section-head-center">
-          <div>
-            <span className="eyebrow">In their words</span>
-            <h2>Both sides of the contract.</h2>
-          </div>
-          <p>Clients who hired here, and an expert who was rejected the first time round.</p>
-        </div>
-        <div className="quote-grid">
-          {testimonials.map((t) => (
-            <figure className="quote-card card" key={t.name}>
-              <div className="quote-mark" aria-hidden="true">&ldquo;</div>
-              <blockquote>{t.quote}</blockquote>
-              <figcaption className="quote-author">
-                <strong>{t.name}</strong>
-                <span>{t.role} · {t.company}</span>
-              </figcaption>
-            </figure>
-          ))}
         </div>
       </div>
     </section>

@@ -5,15 +5,12 @@ import { adminAuth, adminDb, firebaseAdminConfigured } from "@/lib/firebase/admi
 
 const cookieName = process.env.SESSION_COOKIE_NAME || "n8nexperts_session";
 
-function demoSession(): SessionUser | null {
-  if (process.env.DEMO_MODE !== "true") return null;
-  const role = (process.env.DEMO_ROLE || "client") as UserRole;
-  return { uid: `demo_${role}`, email: `${role}@demo.n8nexperts.io`, name: role === "admin" ? "Marketplace Admin" : role === "expert" ? "Ana Kovacevic" : "Alex Morgan", role, admin: role === "admin" };
-}
-
+/**
+ * The only way to hold a session is a verified Firebase session cookie. There
+ * is no environment flag that mints one: an unauthenticated request is
+ * unauthenticated everywhere, including locally.
+ */
 export async function getSession(): Promise<SessionUser | null> {
-  const demo = demoSession();
-  if (demo) return demo;
   if (!firebaseAdminConfigured) return null;
   const store = await cookies();
   const value = store.get(cookieName)?.value;
@@ -23,7 +20,13 @@ export async function getSession(): Promise<SessionUser | null> {
     const userDoc = await adminDb().collection("users").doc(decoded.uid).get();
     const data = userDoc.data() || {};
     const role = (data.role || (decoded.admin ? "admin" : "client")) as UserRole;
-    return { uid: decoded.uid, email: decoded.email || data.email || "", name: decoded.name || data.name, role, admin: decoded.admin === true || role === "admin" };
+    return {
+      uid: decoded.uid,
+      email: decoded.email || data.email || "",
+      name: decoded.name || data.name,
+      role,
+      admin: decoded.admin === true || role === "admin",
+    };
   } catch {
     return null;
   }

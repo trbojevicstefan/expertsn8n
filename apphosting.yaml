@@ -47,9 +47,6 @@ env:
     value: "5"
     availability: [RUNTIME]
 
-  - variable: DEMO_MODE
-    value: "false"
-    availability: [RUNTIME]
   - variable: PAYMENT_PROVIDER
     value: mock
     availability: [RUNTIME]

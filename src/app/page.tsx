@@ -5,12 +5,12 @@ import { Footer } from "@/components/footer";
 import { ExpertCard } from "@/components/expert-card";
 import { Avatar } from "@/components/avatar";
 import {
-  AnnounceBar, CaseStudiesSection, ComparisonSection, DifferentiatorsSection,
+  AnnounceBar, ComparisonSection, DifferentiatorsSection,
   ExpertBand, FaqSection, FinalCta, HowItWorksSection, LogoStrip,
-  PricingSection, ProtectionBanner, TestimonialsSection, TrustBar,
+  PricingSection, ProtectionBanner, TrustBar,
   UseCasesSection, VettingSection,
 } from "@/components/marketing";
-import { listPublishedExperts } from "@/lib/data";
+import { listPublishedExperts, marketplaceStats } from "@/lib/data";
 import { faqs } from "@/lib/site-content";
 
 // The featured strip reads live profiles, so the page cannot be frozen at build
@@ -50,7 +50,8 @@ const structuredData = {
 };
 
 export default async function Home() {
-  const experts = (await listPublishedExperts()).slice(0, 6);
+  const [allExperts, stats] = await Promise.all([listPublishedExperts(), marketplaceStats()]);
+  const experts = allExperts.slice(0, 6);
 
   return (
     <>
@@ -72,9 +73,9 @@ export default async function Home() {
                 Hire n8n developers who have <em>already shipped it</em>.
               </h1>
               <p className="hero-copy">
-                Every expert here is reviewed by a human across five stages — identity, real workflow case
-                studies, a technical read of their architecture, and a reference call. One in nine applicants
-                is published.
+                A directory of n8n specialists who came to us directly. Verified profiles have been through
+                a five-stage human review — identity, real workflow case studies, a technical read and a
+                reference call. Every profile that has not says so on its face.
               </p>
               <div className="hero-actions">
                 <Link className="button button-primary button-lg" href="/sign-up">
@@ -87,7 +88,7 @@ export default async function Home() {
                 </Link>
               </div>
               <div className="hero-trust">
-                <span><CheckCircle2 size={16} strokeWidth={2.2} />Human-reviewed profiles</span>
+                <span><CheckCircle2 size={16} strokeWidth={2.2} />Review status stated on every profile</span>
                 <span><CheckCircle2 size={16} strokeWidth={2.2} />Funds released on approval</span>
                 <span><CheckCircle2 size={16} strokeWidth={2.2} />Auditable contract record</span>
               </div>
@@ -117,7 +118,7 @@ export default async function Home() {
                 </div>
               ))}
               <div className="hero-panel-foot">
-                <span><ShieldCheck size={14} strokeWidth={2.2} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />All profiles reference-checked</span>
+                <span><ShieldCheck size={14} strokeWidth={2.2} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />Review status shown on every profile</span>
                 <Link className="text-link" href="/experts" style={{ fontSize: 12 }}>
                   See all <ArrowRight size={12} strokeWidth={2.4} style={{ display: "inline", verticalAlign: "-1px" }} />
                 </Link>
@@ -126,7 +127,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <TrustBar />
+        <TrustBar stats={stats} />
         <LogoStrip />
         <DifferentiatorsSection />
         <VettingSection />
@@ -139,8 +140,8 @@ export default async function Home() {
                 <h2>People who work in n8n every day.</h2>
               </div>
               <p>
-                Each profile carries a reviewed CV, a public photo, at least one detailed workflow case study
-                and a checked client reference before it appears here.
+                Specialists who applied to us directly, with the stack and the work described in their own
+                words. Open a profile to see whether it has been through review yet.
               </p>
             </div>
             <div className="experts-grid">
@@ -157,8 +158,6 @@ export default async function Home() {
         <UseCasesSection />
         <HowItWorksSection />
         <ProtectionBanner />
-        <CaseStudiesSection />
-        <TestimonialsSection />
         <ComparisonSection />
         <PricingSection />
         <ExpertBand />

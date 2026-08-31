@@ -1,13 +1,6 @@
 // Marketing copy for the public site. Kept out of the page components so the
 // homepage stays a composition of sections rather than a wall of literals.
 
-export const trustStats = [
-  { value: "1 in 9", label: "Applicants published", helper: "Every profile reviewed by a human" },
-  { value: "€2.1M", label: "Funded through milestones", helper: "Released only on approved delivery" },
-  { value: "4.96", label: "Average contract rating", helper: "Across 612 completed contracts" },
-  { value: "31 hrs", label: "Median time to shortlist", helper: "From posting to first proposals" },
-];
-
 export const differentiators = [
   {
     icon: "target",
@@ -17,7 +10,7 @@ export const differentiators = [
   {
     icon: "eye",
     title: "You see the work, not adjectives",
-    body: "Every published expert submits real workflow case studies — architecture, integrations, failure handling and the measured outcome. A screenshot of a canvas is not enough to get listed.",
+    body: "Verification here means a reviewer read real workflow case studies — architecture, integrations, failure handling, measured outcome — and checked a reference. Profiles that have not been through that yet are labelled as unvetted rather than quietly padded out.",
   },
   {
     icon: "shield",
@@ -36,31 +29,26 @@ export const vettingSteps = [
     step: "01",
     title: "Identity and CV",
     body: "A real name, a profile photo and a full CV. The CV stays private to the reviewer and never appears on the public profile.",
-    detail: "34% rejected here",
   },
   {
     step: "02",
     title: "Workflow evidence",
     body: "At least one detailed case study: the business problem, the architecture, the integrations, how failures are handled, and what changed for the client.",
-    detail: "41% rejected here",
   },
   {
     step: "03",
     title: "Technical review",
     body: "A reviewer who builds in n8n reads the submitted work, looking for error handling, idempotency, credential hygiene and whether the system is maintainable by someone else.",
-    detail: "14% rejected here",
   },
   {
     step: "04",
     title: "Reference check",
     body: "We contact a previous client for at least one claimed engagement. Unverifiable outcomes are removed from the profile before it goes live.",
-    detail: "8% rejected here",
   },
   {
     step: "05",
     title: "Published, then monitored",
     body: "Approved profiles go live and stay under review. Contract outcomes, dispute history and response times feed back into standing on the marketplace.",
-    detail: "Ongoing",
   },
 ];
 
@@ -97,63 +85,6 @@ export const howItWorks = [
     title: "Review, approve, release",
     body: "The expert submits against the milestone. You approve, request changes, or open a dispute. Approval releases the funds and the contract moves to the next milestone.",
     points: ["Submission-based delivery", "Change requests on record", "Dispute path if needed"],
-  },
-];
-
-export const caseStudies = [
-  {
-    company: "Northstar Commerce",
-    sector: "E-commerce · 140 staff",
-    title: "67 Zapier automations rebuilt in six weeks",
-    body: "A patchwork of Zaps and cron scripts was failing silently and nobody owned it. The rebuild consolidated everything into 21 n8n workflows with shared error handling and a single alerting channel.",
-    metrics: [
-      { value: "€2,400", label: "Monthly tooling saved" },
-      { value: "94%", label: "Fewer silent failures" },
-      { value: "6 wks", label: "End to end" },
-    ],
-  },
-  {
-    company: "Atlas Legal",
-    sector: "Legal services · 60 staff",
-    title: "Document intake with AI extraction and human review",
-    body: "Intake was three people copying fields out of PDFs. The new pipeline classifies documents, extracts structured fields, and routes anything below the confidence threshold to a human queue.",
-    metrics: [
-      { value: "11 hrs", label: "Saved per week" },
-      { value: "99.2%", label: "Field accuracy after review" },
-      { value: "4 wks", label: "To production" },
-    ],
-  },
-  {
-    company: "Mercury Studio",
-    sector: "Agency · 25 staff",
-    title: "Production monitoring across 35 client workflows",
-    body: "Client automations broke quietly and the agency found out from the client. A standardised retry, dead-letter and alerting layer now covers every workflow, with a weekly health report.",
-    metrics: [
-      { value: "0", label: "Client-reported outages since" },
-      { value: "35", label: "Workflows under monitoring" },
-      { value: "10 days", label: "Delivery" },
-    ],
-  },
-];
-
-export const testimonials = [
-  {
-    quote: "We had already burned two contractors from a general freelance site. The difference here was that we could read actual architecture write-ups before talking to anyone.",
-    name: "Sofia Lindqvist",
-    role: "Head of Revenue Operations",
-    company: "Northstar Commerce",
-  },
-  {
-    quote: "The milestone flow removed the awkward part. We funded, they built, we approved. No invoice chasing, no arguing about what was in scope.",
-    name: "Daniel Reyes",
-    role: "Operations Director",
-    company: "Atlas Legal",
-  },
-  {
-    quote: "I applied twice. The first submission was rejected for thin error handling, which was fair. That is exactly why clients here take the profiles seriously.",
-    name: "Luka Petrovic",
-    role: "Senior Automation Engineer",
-    company: "Published expert",
   },
 ];
 
@@ -198,11 +129,11 @@ export const pricing = [
 export const faqs = [
   {
     q: "How is this different from hiring on a general freelance platform?",
-    a: "General platforms optimise for volume across every skill. The n8n tag there is a filter on a database of millions, and nothing in the profile tells you whether someone has run automations in production. Here the directory is n8n specialists only, and a profile does not go live until a reviewer has read real workflow case studies and checked a reference.",
+    a: "General platforms optimise for volume across every skill. The n8n tag there is a filter on a database of millions, and nothing in the profile tells you whether someone has run automations in production. Here the directory is n8n specialists only, and every profile states plainly whether it has been through review or not.",
   },
   {
     q: "What exactly does verified mean on a profile?",
-    a: "It means a human reviewed the identity details, the CV, at least one detailed workflow case study, and contacted a previous client about a claimed engagement. It does not mean we guarantee the outcome of your project — it means the person is who they say they are and has demonstrably done the work.",
+    a: "It means a human reviewed the identity details, the CV, at least one detailed workflow case study, and contacted a previous client about a claimed engagement. It does not mean we guarantee the outcome of your project — it means the person is who they say they are and has demonstrably done the work. A profile without that badge carries a Not yet vetted notice: it was built from a direct application, and the details on it are self-reported.",
   },
   {
     q: "How does milestone funding protect me?",
@@ -218,7 +149,7 @@ export const faqs = [
   },
   {
     q: "How long does expert approval take?",
-    a: "Most applications get a decision within five working days, and roughly one in nine applicants is published. The most common rejection reason is a case study that describes what a workflow does without explaining how it handles failure.",
+    a: "Applications are reviewed by a person rather than a script, so timing depends on the queue and on how much evidence came with the application. The most common reason a submission comes back is a case study that describes what a workflow does without explaining how it handles failure.",
   },
   {
     q: "Can I hire someone for ongoing maintenance rather than a project?",

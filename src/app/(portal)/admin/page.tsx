@@ -1,2 +1,94 @@
-import Link from "next/link";import { AlertTriangle, ArrowUpRight, BadgeCheck, CircleDollarSign, ShieldCheck } from "lucide-react";import { requireAdmin } from "@/lib/auth/server";
-export default async function Admin(){await requireAdmin();const kpis=[["Published experts","184"],["Awaiting review","17"],["Open jobs","61"],["Funded GMV","€128k"],["Open disputes","3"]];return <><div className="portal-head"><div><h1>Marketplace operations</h1><p>Verification, moderation, payments and trust signals.</p></div><span className="status status-info"><ShieldCheck size={13}/> ADMIN</span></div><div className="admin-kpis">{kpis.map(([l,v])=><div className="admin-kpi card" key={l}><small>{l}</small><strong>{v}</strong></div>)}</div><div className="dashboard-grid"><section className="panel card"><div className="panel-head"><h2>Queues requiring attention</h2></div><div className="activity"><div className="activity-icon"><BadgeCheck size={17}/></div><div><strong>17 expert applications</strong><span>Oldest review is 19 hours old.</span></div><Link href="/admin/experts"><ArrowUpRight size={16}/></Link></div><div className="activity"><div className="activity-icon"><CircleDollarSign size={17}/></div><div><strong>2 payment reconciliation warnings</strong><span>Provider event and local state need review.</span></div><Link href="/admin/payments"><ArrowUpRight size={16}/></Link></div><div className="activity"><div className="activity-icon"><AlertTriangle size={17}/></div><div><strong>3 open disputes</strong><span>One case reaches SLA in 8 hours.</span></div><Link href="/admin/disputes"><ArrowUpRight size={16}/></Link></div></section><aside className="panel card"><div className="panel-head"><h2>Trust health</h2></div><div className="quick-list"><span className="notice" style={{margin:0}}><strong>98.7% clean pre-funding content</strong>Contact guard blocked 23 attempts this week.</span><span className="notice" style={{margin:0,background:"#f3faf6",borderColor:"#abefc6",color:"#067647"}}><strong>0 critical finance drift</strong>Last reconciliation completed 11 minutes ago.</span></div></aside></div></>}
+import Link from "next/link";
+import { ArrowUpRight, BadgeCheck, ShieldCheck } from "lucide-react";
+import { requireAdmin } from "@/lib/auth/server";
+import { EmptyState } from "@/components/empty-state";
+import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+
+export const dynamic = "force-dynamic";
+
+async function count(collection: string, filter?: [string, string | boolean]): Promise<number> {
+  if (!firebaseAdminConfigured) return 0;
+  try {
+    const base = adminDb().collection(collection);
+    const q = filter ? base.where(filter[0], "==", filter[1]) : base;
+    return (await q.count().get()).data().count;
+  } catch {
+    return 0;
+  }
+}
+
+export default async function Admin() {
+  await requireAdmin();
+
+  const [published, unclaimed, verified, openJobs, pendingDocs] = await Promise.all([
+    count("expertProfiles", ["status", "PUBLISHED"]),
+    count("expertProfiles", ["claimState", "UNCLAIMED"]),
+    count("expertProfiles", ["verified", true]),
+    count("jobs", ["status", "OPEN"]),
+    count("expertDocuments", ["reviewState", "PENDING"]),
+  ]);
+
+  const kpis: [string, string | number][] = [
+    ["Published profiles", published],
+    ["Unclaimed", unclaimed],
+    ["Verified", verified],
+    ["Open jobs", openJobs],
+    ["Documents pending", pendingDocs],
+  ];
+
+  const queues = [
+    published - verified > 0
+      ? {
+          title: `${published - verified} profile${published - verified === 1 ? "" : "s"} not yet verified`,
+          body: "Seeded from applications and published unvetted. They show a Not yet vetted notice until reviewed.",
+          href: "/admin/experts",
+        }
+      : null,
+    pendingDocs > 0
+      ? {
+          title: `${pendingDocs} document${pendingDocs === 1 ? "" : "s"} awaiting review`,
+          body: "CVs, portfolios and identity documents uploaded by experts.",
+          href: "/admin/experts",
+        }
+      : null,
+  ].filter(Boolean) as { title: string; body: string; href: string }[];
+
+  return (
+    <>
+      <div className="portal-head">
+        <div>
+          <h1>Marketplace operations</h1>
+          <p>Verification, moderation, payments and trust signals.</p>
+        </div>
+        <span className="status status-info"><ShieldCheck size={13} /> ADMIN</span>
+      </div>
+
+      <div className="admin-kpis">
+        {kpis.map(([label, value]) => (
+          <div className="admin-kpi card" key={label}>
+            <small>{label}</small>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <section className="panel card">
+        <div className="panel-head"><h2>Queues requiring attention</h2></div>
+        {queues.length === 0 ? (
+          <EmptyState title="Nothing waiting" body="No profiles or documents are queued for review right now." />
+        ) : (
+          queues.map((q) => (
+            <div className="activity" key={q.title}>
+              <div className="activity-icon"><BadgeCheck size={17} /></div>
+              <div>
+                <strong>{q.title}</strong>
+                <span>{q.body}</span>
+              </div>
+              <Link href={q.href} aria-label={q.title}><ArrowUpRight size={16} /></Link>
+            </div>
+          ))
+        )}
+      </section>
+    </>
+  );
+}
