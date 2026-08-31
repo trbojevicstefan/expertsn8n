@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import { paymentProvider } from "@/lib/payments";
+import { markProviderActionPending, paymentIdempotencyKey } from "@/lib/payments/actions";
+import { processConfirmedProviderPaymentEvent } from "@/lib/payments/events";
 import type { Contract, SupportTicket } from "@/lib/types";
 
 const schema = z.object({
@@ -36,36 +38,92 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const ticket = { id: snap.id, ...snap.data() } as SupportTicket;
   const nowIso = new Date().toISOString();
 
-  // A disputed milestone is frozen; resolving the ticket is what unfreezes it,
-  // in the direction the reviewer decides.
+  // A disputed milestone remains frozen until the provider confirms the money
+  // outcome. A provider merely accepting a transfer/refund request is not a
+  // reason to close the dispute.
   if (ticket.contractId && ticket.milestoneId && input.outcome !== "none") {
     const contractRef = db.collection("contracts").doc(ticket.contractId);
     const contractSnap = await contractRef.get();
-    if (contractSnap.exists) {
-      const contract = { id: contractSnap.id, ...contractSnap.data() } as Contract;
-      const milestones = [...(contract.milestones || [])];
-      const idx = milestones.findIndex((m) => m.id === ticket.milestoneId);
+    if (!contractSnap.exists) {
+      return NextResponse.json({ error: "Contract not found." }, { status: 404 });
+    }
 
-      if (idx >= 0) {
-        const milestone = milestones[idx]!;
-        if (input.outcome === "release") {
-          const r = await paymentProvider().releaseFunds({
-            milestoneId: milestone.id, contractId: contract.id, amount: milestone.amount,
-            currency: contract.currency, expertId: contract.expertId,
-          });
-          if (!r.accepted) return NextResponse.json({ error: "The provider refused the release." }, { status: 402 });
-          milestones[idx] = { ...milestone, status: "RELEASED", releasedAt: nowIso };
-        } else if (input.outcome === "refund") {
-          const r = await paymentProvider().refundFunds({
-            milestoneId: milestone.id, contractId: contract.id, amount: milestone.amount,
-            currency: contract.currency, expertId: contract.expertId,
-          });
-          if (!r.accepted) return NextResponse.json({ error: "The provider refused the refund." }, { status: 402 });
-          milestones[idx] = { ...milestone, status: "REFUNDED" };
-        } else if (input.outcome === "reopen") {
-          milestones[idx] = { ...milestone, status: "FUNDED" };
+    const contract = { id: contractSnap.id, ...contractSnap.data() } as Contract;
+    const milestones = [...(contract.milestones || [])];
+    const idx = milestones.findIndex((m) => m.id === ticket.milestoneId);
+    if (idx < 0) return NextResponse.json({ error: "Disputed milestone not found." }, { status: 404 });
+    const milestone = milestones[idx]!;
+
+    if (input.outcome === "reopen") {
+      milestones[idx] = { ...milestone, status: "FUNDED", paymentStatus: "FUNDED" };
+      await contractRef.set({ milestones, updatedAt: nowIso }, { merge: true });
+    }
+
+    if (input.outcome === "release" || input.outcome === "refund") {
+      try {
+        const action = input.outcome;
+        const provider = paymentProvider();
+        const providerResult =
+          action === "release"
+            ? await provider.releaseFunds({
+                milestoneId: milestone.id,
+                contractId: contract.id,
+                amount: milestone.amount,
+                currency: contract.currency,
+                expertId: contract.expertId,
+                idempotencyKey: paymentIdempotencyKey(contract.id, milestone.id, "release"),
+              })
+            : await provider.refundFunds({
+                milestoneId: milestone.id,
+                contractId: contract.id,
+                amount: milestone.amount,
+                currency: contract.currency,
+                expertId: contract.expertId,
+                idempotencyKey: paymentIdempotencyKey(contract.id, milestone.id, "refund"),
+              });
+
+        await markProviderActionPending({
+          contractId: contract.id,
+          milestoneId: milestone.id,
+          action,
+          provider: providerResult.provider,
+          providerActionId: providerResult.providerActionId,
+        });
+
+        if (providerResult.status === "PENDING") {
+          await snap.ref.set(
+            {
+              state: "IN_REVIEW",
+              resolution: input.resolution,
+              updatedAt: nowIso,
+              pendingPaymentOutcome: action,
+              pendingProviderActionId: providerResult.providerActionId,
+            },
+            { merge: true },
+          );
+          return NextResponse.json(
+            {
+              ok: true,
+              state: "IN_REVIEW",
+              paymentStatus: action === "release" ? "RELEASE_PENDING" : "REFUND_PENDING",
+            },
+            { status: 202 },
+          );
         }
-        await contractRef.set({ milestones, updatedAt: nowIso }, { merge: true });
+
+        await processConfirmedProviderPaymentEvent({
+          provider: providerResult.provider,
+          eventId: `${providerResult.providerActionId}:confirmed`,
+          actionId: providerResult.providerActionId,
+          kind: action === "release" ? "RELEASE_CONFIRMED" : "REFUND_CONFIRMED",
+          contractId: contract.id,
+          milestoneId: milestone.id,
+          amount: milestone.amount,
+          currency: contract.currency,
+          occurredAt: nowIso,
+        });
+      } catch {
+        return NextResponse.json({ error: "The payment provider could not complete that dispute outcome." }, { status: 503 });
       }
     }
   }
@@ -77,6 +135,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       resolvedBy: input.state === "RESOLVED" ? session.uid : null,
       resolvedAt: input.state === "RESOLVED" ? nowIso : null,
       updatedAt: nowIso,
+      pendingPaymentOutcome: null,
+      pendingProviderActionId: null,
     },
     { merge: true },
   );
