@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
+import { recordContractActivity } from "@/lib/contract-activity";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyAdmins } from "@/lib/notifications";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
   const nowIso = new Date().toISOString();
   let amountAtRisk: number | null = null;
   let kind: "GENERAL" | "DISPUTE" = "GENERAL";
+  let contractTitle = "";
 
   if (input.contractId) {
     const snap = await db.collection("contracts").doc(input.contractId).get();
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
     }
 
     kind = "DISPUTE";
+    contractTitle = contract.jobTitle;
     const milestones = [...(contract.milestones || [])];
     const idx = milestones.findIndex((m) => m.id === input.milestoneId);
     if (idx >= 0) {
@@ -81,6 +84,19 @@ export async function POST(req: Request) {
     createdAt: nowIso,
     updatedAt: nowIso,
   });
+
+  if (kind === "DISPUTE" && input.contractId) {
+    await recordContractActivity({
+      contractId: input.contractId,
+      type: "DISPUTE_OPENED",
+      actorUid: session.uid,
+      actorName: session.name || session.email,
+      milestoneId: input.milestoneId || null,
+      title: `Dispute opened${contractTitle ? `: ${contractTitle}` : ""}`,
+      detail: input.subject.trim(),
+      createdAt: nowIso,
+    });
+  }
 
   await notifyAdmins({
     type: "MESSAGE",
