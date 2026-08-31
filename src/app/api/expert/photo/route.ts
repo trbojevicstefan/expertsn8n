@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
@@ -10,9 +9,9 @@ const schema = z.object({
 });
 
 /**
- * The browser uploads to the expert's private photo folder. Only the server
- * publishes a copy under `public/`, so an unreviewed private upload can never
- * be reachable by guessing a URL.
+ * Expert photos stay private until an admin explicitly approves them. Replacing
+ * an already-approved photo keeps the old public image live while the new
+ * private upload is pending review.
  */
 export async function POST(req: Request) {
   const session = await getSession();
@@ -44,40 +43,49 @@ export async function POST(req: Request) {
 
   const bucket = adminStorage().bucket();
   const source = bucket.file(input.storagePath);
-  if (!(await source.exists())[0]) {
-    return NextResponse.json({ error: "The uploaded file could not be found." }, { status: 404 });
+  const [exists] = await source.exists();
+  if (!exists) return NextResponse.json({ error: "The uploaded file could not be found." }, { status: 404 });
+
+  const [metadata] = await source.getMetadata();
+  const actualType = String(metadata.contentType || "");
+  const actualSize = Number(metadata.size || 0);
+  if (actualType !== input.contentType || !/^image\/(jpeg|png|webp)$/.test(actualType)) {
+    return NextResponse.json({ error: "Uploaded photo type does not match the submitted metadata." }, { status: 400 });
+  }
+  if (!Number.isFinite(actualSize) || actualSize <= 0 || actualSize > 8 * 1024 * 1024) {
+    return NextResponse.json({ error: "Profile photos must be between 1 byte and 8 MB." }, { status: 400 });
   }
 
-  const ext = input.contentType === "image/png" ? "png" : input.contentType === "image/webp" ? "webp" : "jpg";
-  const publicPath = `public/experts/${expertId}/photo.${ext}`;
-  const token = randomUUID();
-
-  await source.copy(bucket.file(publicPath));
-  await bucket.file(publicPath).setMetadata({
-    contentType: input.contentType,
-    metadata: { firebaseStorageDownloadTokens: token },
-  });
-
-  const photoUrl =
-    `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/` +
-    `${encodeURIComponent(publicPath)}?alt=media&token=${token}`;
-
-  const nowIso = new Date().toISOString();
   const profileRef = db.collection("expertProfiles").doc(expertId);
   const profileSnap = await profileRef.get();
-  const missing = ((profileSnap.data() || {}).missingFields || []) as string[];
+  if (!profileSnap.exists) return NextResponse.json({ error: "Expert profile not found." }, { status: 404 });
+  const profile = profileSnap.data() || {};
+  const previousPending = typeof profile.pendingPhotoStoragePath === "string" ? profile.pendingPhotoStoragePath : "";
+  const hasApprovedPhoto = profile.photoStatus === "APPROVED" && Boolean(profile.photoUrl);
+  const nowIso = new Date().toISOString();
 
   await profileRef.set(
     {
-      photoUrl,
-      // Live immediately so the profile is not blank, but flagged so staff can
-      // still review what was published.
-      photoStatus: "PENDING_REVIEW",
-      missingFields: missing.filter((f) => f !== "photo"),
+      // photoUrl remains the last approved public image (or empty). The new
+      // object is referenced only by its private Storage path until review.
+      photoStatus: hasApprovedPhoto ? "APPROVED" : "PENDING_REVIEW",
+      pendingPhotoStatus: "PENDING_REVIEW",
+      pendingPhotoStoragePath: input.storagePath,
+      pendingPhotoContentType: actualType,
+      pendingPhotoSizeBytes: actualSize,
+      pendingPhotoUploadedAt: nowIso,
       updatedAt: nowIso,
     },
     { merge: true },
   );
 
-  return NextResponse.json({ ok: true, photoUrl });
+  if (previousPending && previousPending !== input.storagePath && previousPending.startsWith(prefix)) {
+    try {
+      await bucket.file(previousPending).delete({ ignoreNotFound: true });
+    } catch {
+      // The new pending record is already valid; stale-file cleanup may be retried later.
+    }
+  }
+
+  return NextResponse.json({ ok: true, photoStatus: "PENDING_REVIEW" }, { status: 202 });
 }
