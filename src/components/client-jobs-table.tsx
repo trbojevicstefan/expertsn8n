@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { StatusBadge } from "./status-badge";
 import { postedLabel } from "@/lib/format";
 import type { MarketplaceJob } from "@/lib/types";
@@ -13,7 +13,7 @@ export function ClientJobsTable({ jobs }: { jobs: MarketplaceJob[] }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
-  const setStatus = async (id: string, status: "OPEN" | "CLOSED" | "FILLED") => {
+  const setStatus = async (id: string, status: "OPEN" | "CLOSED") => {
     setBusy(id);
     setError("");
     try {
@@ -22,7 +22,8 @@ export function ClientJobsTable({ jobs }: { jobs: MarketplaceJob[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Could not update the job.");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update the job.");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update the job.");
@@ -49,9 +50,9 @@ export function ClientJobsTable({ jobs }: { jobs: MarketplaceJob[] }) {
                   <span className="muted">{postedLabel(j.postedAt)}</span>
                 </td>
                 <td><StatusBadge tone={j.visibility === "PRIVATE" ? "neutral" : "info"}>{j.visibility}</StatusBadge></td>
-                <td><StatusBadge tone={j.status === "OPEN" ? "success" : "neutral"}>{j.status}</StatusBadge></td>
+                <td><StatusBadge tone={j.status === "OPEN" ? "success" : j.status === "FILLED" ? "info" : "neutral"}>{j.status}</StatusBadge></td>
                 <td>{j.proposalCount ?? 0}</td>
-                <td>€{(j.budgetMin ?? 0).toLocaleString()}–€{(j.budgetMax ?? 0).toLocaleString()}</td>
+                <td>{j.currency || "EUR"} {(j.budgetMin ?? 0).toLocaleString()}–{(j.budgetMax ?? 0).toLocaleString()}</td>
                 <td className="text-right">
                   <div className="job-row-actions">
                     {j.visibility === "PUBLIC" && j.status === "OPEN" && (
@@ -59,25 +60,22 @@ export function ClientJobsTable({ jobs }: { jobs: MarketplaceJob[] }) {
                         View <ExternalLink size={12} strokeWidth={2.2} />
                       </Link>
                     )}
-                    {j.status === "OPEN" ? (
-                      <button
-                        type="button"
-                        className="button button-secondary button-sm"
-                        disabled={busy === j.id}
-                        onClick={() => setStatus(j.id, "CLOSED")}
-                      >
+                    {["DRAFT", "OPEN"].includes(j.status) && (
+                      <Link className="button button-secondary button-sm" href={`/dashboard/client/jobs/${j.id}/edit`}>
+                        <Pencil size={12} strokeWidth={2.2} />Edit
+                      </Link>
+                    )}
+                    {j.status === "OPEN" && (
+                      <button type="button" className="button button-secondary button-sm" disabled={busy === j.id} onClick={() => setStatus(j.id, "CLOSED")}>
                         {busy === j.id ? "Working…" : "Close"}
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="button button-secondary button-sm"
-                        disabled={busy === j.id}
-                        onClick={() => setStatus(j.id, "OPEN")}
-                      >
+                    )}
+                    {j.status === "CLOSED" && (
+                      <button type="button" className="button button-secondary button-sm" disabled={busy === j.id} onClick={() => setStatus(j.id, "OPEN")}>
                         {busy === j.id ? "Working…" : "Reopen"}
                       </button>
                     )}
+                    {j.status === "FILLED" && <span className="muted">Managed in contract</span>}
                   </div>
                 </td>
               </tr>
