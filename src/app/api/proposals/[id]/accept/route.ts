@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getSession } from "@/lib/auth/server";
+import { recordContractActivity } from "@/lib/contract-activity";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { evaluateProposalAward } from "@/lib/marketplace-policy";
 import { notifyUser } from "@/lib/notifications";
@@ -41,6 +42,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   let notifyExpertUid = "";
   let notifyJobTitle = "job";
   let created = false;
+  let createdAt = "";
 
   try {
     await db.runTransaction(async (tx) => {
@@ -109,6 +111,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
 
       notifyExpertUid = typeof proposal.expertUid === "string" ? proposal.expertUid : "";
       notifyJobTitle = String(proposal.jobTitle || job.title || "job");
+      createdAt = nowIso;
       created = true;
     });
   } catch (error) {
@@ -123,6 +126,16 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     const existingContractId = String((snap.data() || {}).contractId || contractRef.id);
     return NextResponse.json({ ok: true, contractId: existingContractId, idempotent: true });
   }
+
+  await recordContractActivity({
+    contractId: contractRef.id,
+    type: "CONTRACT_CREATED",
+    actorUid: session.uid,
+    actorName: session.name || session.email,
+    title: `Contract created: ${notifyJobTitle}`,
+    detail: "Proposal accepted. The first milestone is ready for funding.",
+    createdAt,
+  });
 
   if (notifyExpertUid) {
     await notifyUser(notifyExpertUid, {
