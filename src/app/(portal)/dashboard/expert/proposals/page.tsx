@@ -1,20 +1,16 @@
 import { FileText } from "lucide-react";
-import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
+import { ExpertProposalsList, type ExpertProposalItem } from "@/components/expert-proposals-list";
 import { requireSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 
 export const dynamic = "force-dynamic";
 
-interface Proposal {
-  id: string; jobTitle?: string; price?: number; delivery?: string; status?: string;
-}
-
-async function proposalsFor(uid: string): Promise<Proposal[]> {
+async function proposalsFor(uid: string): Promise<ExpertProposalItem[]> {
   if (!firebaseAdminConfigured) return [];
   try {
     const snap = await adminDb().collection("proposals").where("expertUid", "==", uid).limit(100).get();
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Proposal);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ExpertProposalItem);
   } catch {
     return [];
   }
@@ -29,7 +25,7 @@ export default async function Proposals() {
       <div className="portal-head">
         <div>
           <h1>Proposals</h1>
-          <p>Your public-job applications and private invite responses.</p>
+          <p>Your public-job applications and private invite responses. You can withdraw an actionable proposal until it is accepted or declined.</p>
         </div>
       </div>
 
@@ -41,23 +37,7 @@ export default async function Proposals() {
           action={{ label: "Browse open projects", href: "/jobs" }}
         />
       ) : (
-        <div className="data-card card">
-          <table className="data-table">
-            <thead>
-              <tr><th>Project</th><th>Price</th><th>Delivery</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              {proposals.map((p) => (
-                <tr key={p.id}>
-                  <td><strong>{p.jobTitle || "—"}</strong></td>
-                  <td>{p.price != null ? `€${p.price.toLocaleString()}` : "—"}</td>
-                  <td>{p.delivery || "—"}</td>
-                  <td><StatusBadge tone="info">{p.status || "SUBMITTED"}</StatusBadge></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ExpertProposalsList proposals={proposals} />
       )}
     </>
   );
