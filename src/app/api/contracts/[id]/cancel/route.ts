@@ -27,8 +27,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const db = adminDb();
   const ref = db.collection("contracts").doc(id);
-  let contract: Contract | null = null;
   let idempotent = false;
+  let otherUid = "";
+  let jobTitle = "Contract";
   const nowIso = new Date().toISOString();
 
   try {
@@ -36,7 +37,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error("NOT_FOUND:Contract not found.");
       const current = { id: snap.id, ...snap.data() } as Contract;
-      contract = current;
 
       const isClient = current.clientId === session.uid;
       const isExpert = current.expertUid === session.uid;
@@ -51,6 +51,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const kind = policy.status === 403 ? "FORBIDDEN" : "CONFLICT";
         throw new Error(`${kind}:${policy.message}`);
       }
+
+      otherUid = isClient ? current.expertUid : current.clientId;
+      jobTitle = current.jobTitle || "Contract";
+
       if (policy.idempotent) {
         idempotent = true;
         return;
@@ -91,7 +95,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   if (idempotent) return NextResponse.json({ ok: true, status: "CANCELLED", idempotent: true });
-  if (!contract) return NextResponse.json({ error: "Contract not found." }, { status: 404 });
 
   await recordContractActivity({
     contractId: id,
@@ -103,11 +106,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     createdAt: nowIso,
   });
 
-  const otherUid = contract.clientId === session.uid ? contract.expertUid : contract.clientId;
   if (otherUid && otherUid !== session.uid) {
     await notifyUser(otherUid, {
       type: "MESSAGE",
-      title: `Contract cancelled: ${contract.jobTitle}`,
+      title: `Contract cancelled: ${jobTitle}`,
       body: input.reason.slice(0, 160),
       href: `/contracts/${id}`,
     });
