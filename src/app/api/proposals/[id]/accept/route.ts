@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { evaluateProposalAward } from "@/lib/marketplace-policy";
 import { notifyUser } from "@/lib/notifications";
 import type { ContractMilestone } from "@/lib/types";
 
@@ -23,8 +24,6 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const { id } = await params;
   const db = adminDb();
   const proposalRef = db.collection("proposals").doc(id);
-  // A deterministic contract id makes retries safe even if the client repeats
-  // the request after the first response is lost.
   const contractRef = db.collection("contracts").doc(`proposal_${id}`);
 
   let notifyExpertUid = "";
@@ -37,44 +36,32 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       if (!proposalSnap.exists) throw new Error("NOT_FOUND:Proposal not found.");
 
       const proposal = proposalSnap.data() || {};
-      if (proposal.clientId !== session.uid && !session.admin) {
-        throw new Error("FORBIDDEN:This proposal is not on your job.");
-      }
-
-      if (proposal.status === "ACCEPTED") {
-        // Idempotent retry. The original contract id is authoritative, with the
-        // deterministic id as a fallback for records created by this version.
-        return;
-      }
-      if (["DECLINED", "WITHDRAWN"].includes(String(proposal.status))) {
-        throw new Error("CONFLICT:This proposal is no longer actionable.");
-      }
+      // Preserve retry safety even if the associated job is later archived.
+      if (proposal.status === "ACCEPTED") return;
       if (!proposal.jobId) throw new Error("CONFLICT:Proposal has no job.");
 
       const jobRef = db.collection("jobs").doc(String(proposal.jobId));
       const jobSnap = await tx.get(jobRef);
       if (!jobSnap.exists) throw new Error("NOT_FOUND:Job not found.");
       const job = jobSnap.data() || {};
+      const total = Number(proposal.price);
 
-      if (job.clientId && job.clientId !== proposal.clientId) {
-        throw new Error("CONFLICT:Proposal and job ownership do not match.");
-      }
-      if (job.status === "FILLED") {
-        throw new Error("CONFLICT:This job already has an accepted proposal.");
-      }
-      if (!session.admin && job.clientId !== session.uid) {
-        throw new Error("FORBIDDEN:This job is not yours.");
-      }
-      if (!["OPEN", "MATCHING"].includes(String(job.status))) {
-        throw new Error("CONFLICT:This job is not accepting an award.");
+      const decision = evaluateProposalAward({
+        viewerUid: session.uid,
+        viewerAdmin: Boolean(session.admin),
+        proposalClientId: String(proposal.clientId || ""),
+        proposalStatus: String(proposal.status || ""),
+        proposalJobId: String(proposal.jobId || ""),
+        proposalPrice: total,
+        jobClientId: String(job.clientId || ""),
+        jobStatus: String(job.status || ""),
+      });
+      if (!decision.ok) {
+        const kind = decision.status === 403 ? "FORBIDDEN" : "CONFLICT";
+        throw new Error(`${kind}:${decision.message}`);
       }
 
       const nowIso = new Date().toISOString();
-      const total = Number(proposal.price) || 0;
-      if (!Number.isFinite(total) || total <= 0) {
-        throw new Error("CONFLICT:Proposal price is invalid.");
-      }
-
       tx.create(contractRef, {
         jobId: proposal.jobId,
         jobTitle: proposal.jobTitle || job.title || "",
