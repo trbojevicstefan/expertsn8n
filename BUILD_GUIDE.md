@@ -19,6 +19,7 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - Provider-neutral marketplace payment abstraction; mock provider is development-only and hard-blocked in production
 - Explicit milestone payment state separate from work-delivery state
 - Provider-confirmed money-event processor with idempotent provider receipts and atomic ledger writes
+- Contract activity timeline and completed-contract reviews
 - Zod validation on important write endpoints
 - Firestore-backed distributed rate limiting for sensitive write endpoints
 - GitHub Actions CI for tests, typecheck, lint and production build
@@ -33,7 +34,8 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - [x] Public/private jobs, job creation and expert invites
 - [x] Expert proposal submission with anti-circumvention validation
 - [x] Proposal acceptance creates a contract and milestone plan
-- [x] Contract workspace with payment-gated messaging, milestone submission/release and disputes
+- [x] Contract workspace with payment-gated messaging, milestone submission/release, change requests and disputes
+- [x] Completed-contract reviews and contract activity timeline
 - [x] Notifications and support ticket flows
 - [x] Firebase Firestore/Storage rules and Firebase App Hosting configuration
 
@@ -66,12 +68,12 @@ The mock provider is useful for development but **must never be treated as real 
 ## P1 - Contract workspace
 
 - [ ] Add contract file exchange after first funded milestone using `private/contracts/...` server-authorized uploads/downloads.
-- [ ] Add explicit "request changes" milestone action and state transition.
+- [x] Add explicit "request changes" milestone action and state transition.
 - [ ] Add submission attachments and delivery history per milestone.
-- [ ] Add milestone activity/audit timeline.
-- [ ] Add contract cancellation rules for unfunded and funded states.
-- [ ] Add contract completion/review prompt after all milestones are released.
-- [ ] Add client-to-expert and expert-to-client review/rating records tied to completed contracts.
+- [x] Add milestone activity/audit timeline.
+- [x] Add contract cancellation rules for unfunded and funded states. Direct cancellation is allowed only with no money at risk; otherwise the dispute path is required.
+- [x] Add contract completion/review prompt after all milestones are released.
+- [x] Add client-to-expert and expert-to-client review/rating records tied to completed contracts.
 
 ## P1 - Jobs, proposals and invitations
 
@@ -136,14 +138,14 @@ The mock provider is useful for development but **must never be treated as real 
 
 - [ ] Add immutable `auditEvents` collection for privileged state changes.
 - [x] Add immutable `ledgerEntries` schema with unique provider event/action IDs.
-- [ ] Add `reviews` collection linked to contract + reviewer + reviewee with one-review-per-side constraint.
+- [x] Add `reviews` collection linked to contract + reviewer + reviewee with one-review-per-side constraint.
 - [ ] Add `invites` lifecycle statuses and timestamps.
 - [ ] Add explicit payment/payout status fields rather than deriving money truth only from milestone UI state. Explicit payment status is complete; payout onboarding/status still remains.
 - [ ] Add migration/backfill scripts for every schema change that affects existing data. Payment reads include a backwards-compatible legacy status mapper, but no destructive backfill is required yet.
 
 ## Test plan
 
-- [ ] Unit tests: contact guard, claim-code hashing/verification, workflow parser, money helpers and state transition rules. Payment and marketplace-state transition coverage exists; the remaining listed units stay open.
+- [ ] Unit tests: contact guard, claim-code hashing/verification, workflow parser, money helpers and state transition rules. Payment, proposal, milestone, change-request and cancellation transition coverage exists; remaining listed units stay open.
 - [ ] API tests: unauthenticated, wrong role, wrong owner, invalid input and happy path for every sensitive route.
 - [ ] Transaction tests: concurrent proposal acceptance and duplicate payment webhook handling. Pure policy/idempotency behavior exists; Firestore/emulator concurrency coverage stays open.
 - [ ] Firebase emulator tests for Firestore/Storage/Realtime Database security rules.
@@ -178,27 +180,22 @@ A task can be checked only when all applicable conditions are true:
 
 ## Current implementation sprint
 
-Working branch: `build/p0-payment-ledger`
+Working branch: `build/p1-contract-completion`
 
-- [x] Add explicit milestone `paymentStatus` with backwards-compatible mapping for existing contracts.
-- [x] Add stable provider idempotency keys and persist pending provider actions.
-- [x] Add provider-confirmed funding/release/refund transitions.
-- [x] Write provider event receipt, action receipt and immutable ledger entry atomically with confirmed contract state.
-- [x] Persist provider funding/release/refund action IDs on milestones and ledger records.
-- [x] Ensure only confirmed funding can set `messagingUnlockedAt`.
-- [x] Remove optimistic money-state writes from normal milestone actions and admin dispute outcomes.
-- [x] Remove obsolete duplicate milestone-funding endpoint that bypassed the new state machine.
-- [x] Block the mock provider whenever `NODE_ENV=production`.
-- [x] Document provider eligibility and selection criteria in `docs/PAYMENTS_PROVIDER_DECISION.md`.
-- [ ] Confirm the platform legal-entity jurisdiction and launch payout countries.
-- [ ] Select and implement the real marketplace provider adapter.
-- [ ] Add signed real-provider webhook ingestion and connect it to the idempotent event processor.
-- [ ] Add payout onboarding/status, reconciliation, and platform fee calculation.
+- [x] Add client `Request changes` and expert resubmission lifecycle.
+- [x] Add money-safe direct cancellation and force funded/pending cases into disputes.
+- [x] Reopen the job/proposal when an unfunded contract is cancelled.
+- [x] Add contract activity records and workspace timeline.
+- [x] Add one final review per side after completion.
+- [x] Recalculate expert rating/review count from completed-contract client reviews.
+- [x] Increment expert `completedProjects` exactly once when the final release is provider-confirmed.
+- [x] Record dispute open/resolution and provider-confirmed funding/release/refund in the timeline.
+- [ ] Add contract file exchange and submission attachments/delivery history.
 
 ### Validation note
 
-The tests/rate-limit sprint established Node 22 automated policy tests and the CI gate. The payment-core sprint increases that suite to 16 tests, adding payment transition and production-provider guard coverage.
+The tests/rate-limit sprint established Node 22 automated policy tests and the CI gate. The payment-core sprint added provider-confirmed state and ledger tests. The contract-completion sprint increases the stacked suite to 20 tests, including change-request authorization/state and cancellation money-safety coverage.
 
-During validation, CI found two pre-existing payment paths still using the old optimistic provider interface: the obsolete `/api/milestones/[id]/fund` endpoint and admin dispute resolution. The obsolete endpoint had no application caller and was removed; dispute release/refund was migrated to the same pending -> provider confirmation -> ledger path. After those fixes, CI passed `npm ci`, all 16 tests, typecheck, lint and the production Next.js build. A documentation-only provider-decision commit was then validated by the same CI pipeline before payment-core tasks were checked.
+During validation, TypeScript found a transaction-closure narrowing issue in the new cancellation route after all 20 tests had already passed. The route was corrected to carry only notification metadata out of the transaction. The subsequent CI run passed all 20 tests, typecheck, lint and the production Next.js build before these contract-workspace items were checked.
 
 The provider comparison is intentionally not the same as provider selection. Current public eligibility documentation must be rechecked against the actual legal entity and launch countries before the real adapter, webhook and payout flows can be implemented.
