@@ -1,3 +1,79 @@
-import { NextResponse } from "next/server";import { z } from "zod";import { getSession } from "@/lib/auth/server";import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
-const schema=z.object({decision:z.enum(["NEEDS_CHANGES","VERIFIED","REJECTED","SUSPENDED"]),reason:z.string().min(3).max(1000)});
-export async function POST(req:Request,{params}:{params:Promise<{uid:string}>}){const session=await getSession();if(!session?.admin)return NextResponse.json({error:"Admin required"},{status:403});try{const{uid}=await params;const input=schema.parse(await req.json());if(!firebaseAdminConfigured)throw new Error("Firebase Admin is not configured.");const batch=adminDb().batch();batch.set(adminDb().collection("expertVerifications").doc(uid),{state:input.decision,reviewedBy:session.uid,reviewNotes:input.reason,reviewedAt:new Date().toISOString()},{merge:true});batch.set(adminDb().collection("expertProfiles").doc(uid),{status:input.decision,verified:input.decision==="VERIFIED"},{merge:true});batch.create(adminDb().collection("adminAuditLogs").doc(),{actorId:session.uid,action:`EXPERT_${input.decision}`,targetType:"expert",targetId:uid,reason:input.reason,createdAt:new Date().toISOString()});await batch.commit();return NextResponse.json({ok:true});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Invalid decision"},{status:400})}}
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getSession } from "@/lib/auth/server";
+import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+
+const schema = z.object({
+  decision: z.enum(["VERIFIED", "NEEDS_CHANGES", "REJECTED", "SUSPENDED", "PUBLISHED"]),
+  reason: z.string().min(3).max(1000),
+});
+
+/**
+ * Verification and publication are separate axes, and conflating them was a
+ * bug: writing the decision straight into `status` meant verifying a live
+ * profile set status to VERIFIED, which drops it out of the directory query.
+ *
+ * `verified` drives the badge. `status` drives visibility.
+ */
+function profilePatch(decision: z.infer<typeof schema>["decision"]) {
+  switch (decision) {
+    case "VERIFIED":
+      // Reviewed and trusted — badge on, stays listed.
+      return { verified: true, status: "PUBLISHED" };
+    case "PUBLISHED":
+      // Back into the directory without asserting it passed review.
+      return { status: "PUBLISHED" };
+    case "NEEDS_CHANGES":
+      return { verified: false, status: "NEEDS_CHANGES" };
+    case "REJECTED":
+      return { verified: false, status: "REJECTED" };
+    case "SUSPENDED":
+      return { verified: false, status: "SUSPENDED" };
+  }
+}
+
+export async function POST(req: Request, { params }: { params: Promise<{ uid: string }> }) {
+  const session = await getSession();
+  if (!session?.admin) return NextResponse.json({ error: "Admin required" }, { status: 403 });
+
+  try {
+    const { uid } = await params;
+    const input = schema.parse(await req.json());
+    if (!firebaseAdminConfigured) throw new Error("Firebase Admin is not configured.");
+
+    const db = adminDb();
+    const profileRef = db.collection("expertProfiles").doc(uid);
+    if (!(await profileRef.get()).exists) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+    }
+
+    const nowIso = new Date().toISOString();
+    const batch = db.batch();
+
+    batch.set(
+      db.collection("expertVerifications").doc(uid),
+      { state: input.decision, reviewedBy: session.uid, reviewNotes: input.reason, reviewedAt: nowIso },
+      { merge: true },
+    );
+
+    batch.set(profileRef, { ...profilePatch(input.decision), updatedAt: nowIso }, { merge: true });
+
+    batch.create(db.collection("adminAuditLogs").doc(), {
+      actorId: session.uid,
+      actorEmail: session.email,
+      action: `EXPERT_${input.decision}`,
+      targetType: "expert",
+      targetId: uid,
+      reason: input.reason,
+      createdAt: nowIso,
+    });
+
+    await batch.commit();
+    return NextResponse.json({ ok: true, decision: input.decision });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Invalid decision" },
+      { status: 400 },
+    );
+  }
+}

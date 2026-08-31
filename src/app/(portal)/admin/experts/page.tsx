@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/server";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
@@ -75,7 +76,9 @@ export default async function AdminExperts() {
                     </StatusBadge>
                   </td>
                   <td className="text-right">
-                    <button className="button button-secondary button-sm">Review</button>
+                    <Link className="button button-secondary button-sm" href={`/admin/experts/${e.id}`}>
+                      Review
+                    </Link>
                   </td>
                 </tr>
               ))}
