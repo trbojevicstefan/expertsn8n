@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Bell, BriefcaseBusiness, ChevronRight, CircleDollarSign, FileCheck2, LayoutDashboard,
-  LogOut, Plus, Settings, ShieldCheck, UserRoundSearch, Workflow,
+  LifeBuoy, LogOut, Plus, ScrollText, Settings, ShieldCheck, UserRoundSearch, Workflow,
 } from "lucide-react";
 import { Brand } from "./brand";
 import type { SessionUser } from "@/lib/types";
@@ -23,16 +23,21 @@ export function DashboardShell({
     ? [
       ["Overview", "/dashboard", LayoutDashboard],
       ["My jobs", "/dashboard/client/jobs", BriefcaseBusiness],
+      ["Proposals", "/dashboard/client/proposals", FileCheck2],
+      ["Contracts", "/dashboard/contracts", ScrollText],
       ["Find experts", "/experts", UserRoundSearch],
       ["Notifications", "/notifications", Bell],
+      ["Support", "/support", LifeBuoy],
     ]
     : [
       ["Overview", "/dashboard", LayoutDashboard],
       ["My profile", "/dashboard/expert/profile", UserRoundSearch],
       ["Showcases", "/dashboard/expert/showcases", Workflow],
-      ["Notifications", "/notifications", Bell],
       ["Invites", "/dashboard/expert/invites", BriefcaseBusiness],
       ["Proposals", "/dashboard/expert/proposals", FileCheck2],
+      ["Contracts", "/dashboard/contracts", ScrollText],
+      ["Notifications", "/notifications", Bell],
+      ["Support", "/support", LifeBuoy],
     ];
 
   return (
@@ -54,6 +59,7 @@ export function DashboardShell({
               <Link href="/admin"><ShieldCheck size={18} /><span>Admin panel</span><ChevronRight className="side-chevron" size={15} /></Link>
               <Link href="/admin/experts"><UserRoundSearch size={18} /><span>Experts</span></Link>
               <Link href="/admin/jobs"><BriefcaseBusiness size={18} /><span>All jobs</span></Link>
+              <Link href="/admin/tickets"><LifeBuoy size={18} /><span>Support &amp; disputes</span></Link>
               <Link href="/admin/payments"><CircleDollarSign size={18} /><span>Payments</span></Link>
               <div className="nav-label">Hiring</div>
               <Link href="/dashboard/client/jobs/new"><Plus size={18} /><span>Post a job</span></Link>

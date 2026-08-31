@@ -4,6 +4,8 @@ import { BadgeCheck, Clock3, LockKeyhole } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
 import { findJob } from "@/lib/data";
+import { getSession } from "@/lib/auth/server";
+import { ProposalForm } from "@/components/proposal-form";
 import { postedLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const job = await findJob(id);
+  const [job, session] = await Promise.all([findJob(id), getSession()]);
   if (!job) notFound();
 
   // Records written before these fields existed would throw when spread.
@@ -65,9 +67,17 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             </div>
             {job.delivery && <p className="muted">Expected delivery: {job.delivery}</p>}
 
-            <Link className="button button-primary button-wide" href={`/sign-in?next=/jobs/${job.id}`}>
-              Submit a proposal
-            </Link>
+            {session?.role === "expert" ? (
+              <ProposalForm jobId={job.id} budgetMin={job.budgetMin} budgetMax={job.budgetMax} />
+            ) : session ? (
+              <p className="muted" style={{ fontSize: 13 }}>
+                Proposals come from expert accounts. This is a {session.role} account.
+              </p>
+            ) : (
+              <Link className="button button-primary button-wide" href={`/sign-in?next=/jobs/${job.id}`}>
+                Sign in to send a proposal
+              </Link>
+            )}
 
             <div className="verified-box">
               <LockKeyhole size={18} />

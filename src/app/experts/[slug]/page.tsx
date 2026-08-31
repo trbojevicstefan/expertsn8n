@@ -5,7 +5,9 @@ import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
 import { StatusBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/avatar";
-import { findExpertBySlug, listShowcasesForExpert } from "@/lib/data";
+import { findExpertBySlug, listShowcasesForExpert, listJobsForClient } from "@/lib/data";
+import { getSession } from "@/lib/auth/server";
+import { InviteExpert } from "@/components/invite-expert";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,13 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
   const expert = await findExpertBySlug(slug);
   if (!expert) notFound();
 
-  const items = await listShowcasesForExpert(expert.id);
+  const [items, session] = await Promise.all([listShowcasesForExpert(expert.id), getSession()]);
+  const canInvite = Boolean(session && (session.role === "client" || session.admin));
+  const myJobs = canInvite && session
+    ? (await listJobsForClient(session.uid))
+        .filter((j) => ["DRAFT", "OPEN", "MATCHING"].includes(j.status))
+        .map((j) => ({ id: j.id, title: j.title }))
+    : [];
   const hasRating = expert.reviewCount > 0;
   const hasRate = expert.hourlyRate > 0;
   const unclaimed = expert.claimState === "UNCLAIMED";
@@ -118,9 +126,16 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
                 {expert.availability && <StatusBadge tone="success">Available</StatusBadge>}
               </div>
 
-              <Link href={`/sign-up?invite=${expert.id}`} className="button button-primary button-wide">
-                Invite to a private job
-              </Link>
+              {canInvite && myJobs.length > 0 ? (
+                <InviteExpert expertId={expert.id} expertName={expert.name} jobs={myJobs} />
+              ) : (
+                <Link
+                  href={session ? "/dashboard/client/jobs/new" : `/sign-up?invite=${expert.id}`}
+                  className="button button-primary button-wide"
+                >
+                  {session ? "Post a job to invite them" : "Invite to a private job"}
+                </Link>
+              )}
               <Link href="/sign-up" className="button button-secondary button-wide" style={{ marginTop: 9 }}>
                 Post a public job
               </Link>

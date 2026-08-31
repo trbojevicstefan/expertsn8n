@@ -91,3 +91,83 @@ export interface ShowcaseAttachment {
   workflow?: import("./n8n-workflow").N8nWorkflowSummary;
   parseError?: string;
 }
+
+/* ---------- contracts, chat and tickets ---------- */
+
+export type ContractStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
+
+export interface ContractMilestone {
+  id: string;
+  title: string;
+  amount: number;
+  status: MilestoneStatus;
+  fundedAt?: string | null;
+  submittedAt?: string | null;
+  releasedAt?: string | null;
+  submissionNote?: string;
+}
+
+export interface Contract {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  proposalId: string;
+  clientId: string;
+  clientName: string;
+  expertUid: string;
+  expertId: string;
+  expertName: string;
+  totalAmount: number;
+  currency: string;
+  status: ContractStatus;
+  /** Set the moment the first milestone is funded. Until then the contact
+   *  guard applies and file exchange stays closed. */
+  messagingUnlockedAt: string | null;
+  milestones: ContractMilestone[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContractMessage {
+  id: string;
+  contractId: string;
+  authorUid: string;
+  authorRole: "client" | "expert" | "admin";
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export type TicketKind = "GENERAL" | "DISPUTE";
+export type TicketState = "OPEN" | "IN_REVIEW" | "RESOLVED" | "CLOSED";
+
+/** One channel for anything a user needs staff to look at. A dispute is the
+ *  same record with a contract attached, which additionally freezes release. */
+export interface SupportTicket {
+  id: string;
+  kind: TicketKind;
+  subject: string;
+  body: string;
+  state: TicketState;
+  raisedByUid: string;
+  raisedByName: string;
+  raisedByRole: UserRole;
+  contractId?: string | null;
+  milestoneId?: string | null;
+  amountAtRisk?: number | null;
+  resolution?: string;
+  resolvedBy?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TicketMessage {
+  id: string;
+  ticketId: string;
+  authorUid: string;
+  authorRole: UserRole;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
