@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
@@ -6,37 +7,38 @@ import { notifyUser } from "@/lib/notifications";
 import { ownerUidFor, postMessage } from "@/lib/expert-messages";
 
 const schema = z.object({
-  decision: z.enum(["VERIFIED", "NEEDS_CHANGES", "REJECTED", "SUSPENDED", "PUBLISHED"]),
+  decision: z.enum(["VERIFIED", "NEEDS_CHANGES", "REJECTED", "SUSPENDED"]),
   reason: z.string().min(3).max(1000),
 });
 
-/**
- * Verification and publication are separate axes, and conflating them was a
- * bug: writing the decision straight into `status` meant verifying a live
- * profile set status to VERIFIED, which drops it out of the directory query.
- *
- * `verified` drives the badge. `status` drives visibility.
- */
-function profilePatch(decision: z.infer<typeof schema>["decision"]) {
+function profilePatch(decision: z.infer<typeof schema>["decision"], reason: string, actorUid: string, nowIso: string) {
   switch (decision) {
     case "VERIFIED":
-      // Reviewed and trusted — badge on, stays listed.
-      return { verified: true, status: "PUBLISHED" };
-    case "PUBLISHED":
-      // Back into the directory without asserting it passed review.
-      return { status: "PUBLISHED" };
+      // Verification is trust state, not directory publication. Publish is a
+      // separate checklist-gated action.
+      return {
+        verified: true,
+        status: "VERIFIED",
+        suspensionReason: null,
+        suspendedAt: null,
+      };
     case "NEEDS_CHANGES":
       return { verified: false, status: "NEEDS_CHANGES" };
     case "REJECTED":
       return { verified: false, status: "REJECTED" };
     case "SUSPENDED":
-      return { verified: false, status: "SUSPENDED" };
+      return {
+        verified: false,
+        status: "SUSPENDED",
+        suspensionReason: reason,
+        suspendedAt: nowIso,
+        suspensionHistory: FieldValue.arrayUnion({ reason, suspendedAt: nowIso, suspendedByUid: actorUid }),
+      };
   }
 }
 
 const DECISION_LABEL: Record<z.infer<typeof schema>["decision"], string> = {
-  VERIFIED: "verified",
-  PUBLISHED: "listed in the directory",
+  VERIFIED: "verified — ready for publication checks",
   NEEDS_CHANGES: "changes requested",
   REJECTED: "rejected",
   SUSPENDED: "suspended",
@@ -65,10 +67,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
       { state: input.decision, reviewedBy: session.uid, reviewNotes: input.reason, reviewedAt: nowIso },
       { merge: true },
     );
+    batch.set(profileRef, { ...profilePatch(input.decision, input.reason, session.uid, nowIso), updatedAt: nowIso }, { merge: true });
 
-    batch.set(profileRef, { ...profilePatch(input.decision), updatedAt: nowIso }, { merge: true });
-
-    batch.create(db.collection("adminAuditLogs").doc(), {
+    const legacyAudit = db.collection("adminAuditLogs").doc();
+    batch.create(legacyAudit, {
       actorId: session.uid,
       actorEmail: session.email,
       action: `EXPERT_${input.decision}`,
@@ -77,11 +79,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
       reason: input.reason,
       createdAt: nowIso,
     });
+    const auditEvent = db.collection("auditEvents").doc();
+    batch.create(auditEvent, {
+      actorUid: session.uid,
+      actorEmail: session.email,
+      actorRole: session.role,
+      action: `EXPERT_${input.decision}`,
+      targetType: "expertProfile",
+      targetId: uid,
+      reason: input.reason,
+      metadata: { decision: input.decision },
+      createdAt: nowIso,
+      immutable: true,
+    });
 
     await batch.commit();
 
-    // The reason is the useful part of a decision, so it lands in the expert's
-    // thread as well as in the notification.
     const ownerUid = await ownerUidFor(uid);
     if (ownerUid) {
       await postMessage({
@@ -89,9 +102,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
         authorUid: session.uid,
         authorRole: "admin",
         authorName: session.name || "Marketplace review",
-        body: `Decision: ${DECISION_LABEL[input.decision]}.
-
-${input.reason}`,
+        body: `Decision: ${DECISION_LABEL[input.decision]}.\n\n${input.reason}`,
       });
       await notifyUser(ownerUid, {
         type: "REVIEW_DECISION",
@@ -104,9 +115,6 @@ ${input.reason}`,
 
     return NextResponse.json({ ok: true, decision: input.decision });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Invalid decision" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid decision" }, { status: 400 });
   }
 }
