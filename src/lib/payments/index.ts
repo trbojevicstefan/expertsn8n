@@ -1,3 +1,9 @@
 import type { MarketplacePaymentProvider } from "./provider";
 import { mockPaymentProvider } from "./mock";
-export function paymentProvider(): MarketplacePaymentProvider {const selected=process.env.PAYMENT_PROVIDER||"mock";if(selected!=="mock")throw new Error(`${selected} adapter is not enabled in this repository yet. Keep PAYMENT_PROVIDER=mock until provider credentials and legal entity are approved.`);return mockPaymentProvider;}
+import { selectedPaymentProviderName } from "./provider-selection";
+
+export function paymentProvider(): MarketplacePaymentProvider {
+  const selected = selectedPaymentProviderName(process.env.PAYMENT_PROVIDER, process.env.NODE_ENV);
+  if (selected === "mock") return mockPaymentProvider;
+  throw new Error("Configured payment provider is not available.");
+}

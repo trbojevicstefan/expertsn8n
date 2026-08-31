@@ -16,7 +16,9 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - Firebase Storage for private expert assets and public approved images
 - Firebase App Hosting deployment config
 - Server Route Handlers for privileged mutations
-- Payment provider abstraction with a development-only mock provider
+- Provider-neutral marketplace payment abstraction; mock provider is development-only and hard-blocked in production
+- Explicit milestone payment state separate from work-delivery state
+- Provider-confirmed money-event processor with idempotent provider receipts and atomic ledger writes
 - Zod validation on important write endpoints
 - Firestore-backed distributed rate limiting for sensitive write endpoints
 - GitHub Actions CI for tests, typecheck, lint and production build
@@ -42,24 +44,24 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - [x] Delete the corresponding private Storage object when an expert deletes a document record.
 - [x] Verify uploaded document metadata against the actual Storage object before persisting it to Firestore.
 - [x] Add baseline HTTP security headers (frame protection, MIME sniffing protection, referrer policy, permissions policy and CSP baseline).
-- [x] Make CI deterministic with `npm ci` and keep typecheck + lint + production build as merge gates.
+- [x] Make CI deterministic with `npm ci` and keep tests + typecheck + lint + production build as merge gates.
 - [x] Add automated tests for auth/authorization boundaries, proposal acceptance and milestone state transitions.
 - [x] Add request rate limiting for auth/session, claim verification, proposal creation, messaging and support endpoints.
 
 ## P0 - Payments and money movement
 
-The current payment abstraction is useful for development but **the mock provider must never be treated as real escrow**.
+The mock provider is useful for development but **must never be treated as real escrow or production money movement**. See `docs/PAYMENTS_PROVIDER_DECISION.md` before selecting a provider.
 
-- [ ] Select the production payment/marketplace provider and document its supported countries, KYC/KYB requirements, payout timing, refund/dispute model and marketplace liability.
+- [ ] Select the production payment/marketplace provider and document its supported countries, KYC/KYB requirements, payout timing, refund/dispute model and marketplace liability. Provider comparison is documented; final selection is blocked on the platform legal-entity jurisdiction and launch payout countries.
 - [ ] Add a real provider adapter behind `MarketplacePaymentProvider`.
 - [ ] Implement signed webhook verification.
-- [ ] Implement webhook idempotency using unique provider event IDs.
-- [ ] Persist provider funding/release/refund IDs in ledger records.
-- [ ] Model `PENDING`, `FUNDED`, `RELEASE_PENDING`, `RELEASED`, `REFUND_PENDING`, `REFUNDED` from provider-confirmed events rather than optimistic UI actions.
-- [ ] Prevent messaging unlock until a provider-confirmed funding event exists.
+- [ ] Implement webhook idempotency using unique provider event IDs. The event/action receipt processor is idempotent, but this stays open until a signed real-provider webhook is wired to it.
+- [x] Persist provider funding/release/refund IDs in ledger records.
+- [x] Model `PENDING`, `FUNDED`, `RELEASE_PENDING`, `RELEASED`, `REFUND_PENDING`, `REFUNDED` from provider-confirmed events rather than optimistic UI actions.
+- [x] Prevent messaging unlock until a provider-confirmed funding event exists.
 - [ ] Add reconciliation job/admin view for Firestore state vs provider state.
 - [ ] Add expert payout onboarding/status and block release when payout setup is incomplete.
-- [ ] Add platform fee calculation and immutable ledger entries.
+- [ ] Add platform fee calculation and immutable ledger entries. Immutable money-movement ledger entries are implemented; fee calculation remains open.
 
 ## P1 - Contract workspace
 
@@ -133,17 +135,17 @@ The current payment abstraction is useful for development but **the mock provide
 ## Data model / architecture work
 
 - [ ] Add immutable `auditEvents` collection for privileged state changes.
-- [ ] Add immutable `ledgerEntries` schema with unique provider event/action IDs.
+- [x] Add immutable `ledgerEntries` schema with unique provider event/action IDs.
 - [ ] Add `reviews` collection linked to contract + reviewer + reviewee with one-review-per-side constraint.
 - [ ] Add `invites` lifecycle statuses and timestamps.
-- [ ] Add explicit payment/payout status fields rather than deriving money truth only from milestone UI state.
-- [ ] Add migration/backfill scripts for every schema change that affects existing data.
+- [ ] Add explicit payment/payout status fields rather than deriving money truth only from milestone UI state. Explicit payment status is complete; payout onboarding/status still remains.
+- [ ] Add migration/backfill scripts for every schema change that affects existing data. Payment reads include a backwards-compatible legacy status mapper, but no destructive backfill is required yet.
 
 ## Test plan
 
-- [ ] Unit tests: contact guard, claim-code hashing/verification, workflow parser, money helpers and state transition rules.
+- [ ] Unit tests: contact guard, claim-code hashing/verification, workflow parser, money helpers and state transition rules. Payment and marketplace-state transition coverage exists; the remaining listed units stay open.
 - [ ] API tests: unauthenticated, wrong role, wrong owner, invalid input and happy path for every sensitive route.
-- [ ] Transaction tests: concurrent proposal acceptance and duplicate payment webhook handling.
+- [ ] Transaction tests: concurrent proposal acceptance and duplicate payment webhook handling. Pure policy/idempotency behavior exists; Firestore/emulator concurrency coverage stays open.
 - [ ] Firebase emulator tests for Firestore/Storage/Realtime Database security rules.
 - [ ] E2E client journey: sign up -> create job -> invite/receive proposal -> accept -> fund -> message -> approve/release -> review.
 - [ ] E2E expert journey: sign up -> profile/docs/showcase -> review -> browse/invite -> proposal -> contract -> submit -> payout state.
@@ -157,7 +159,7 @@ The current payment abstraction is useful for development but **the mock provide
 - [ ] Firestore, Storage and Realtime Database rules deployed and emulator-tested.
 - [ ] Server runtime identity can use Firebase Admin without embedding a service-account key in the repo.
 - [ ] Payment provider secrets configured in the hosting secret store, never `NEXT_PUBLIC_*`.
-- [ ] Production payment provider enabled; mock provider blocked in production.
+- [ ] Production payment provider enabled; mock provider blocked in production. The mock block is complete; this remains open until a real provider is enabled.
 - [ ] Monitoring/error reporting configured.
 - [ ] Custom domain, HTTPS, canonical host and redirects verified.
 - [ ] Smoke test performed after deployment for all P0 client/expert/admin flows.
@@ -169,23 +171,34 @@ A task can be checked only when all applicable conditions are true:
 1. Implementation is committed to the working branch.
 2. Authorization and input-validation behavior is explicit.
 3. Error paths return useful non-sensitive errors.
-4. Typecheck, lint and production build pass in CI.
+4. Tests, typecheck, lint and production build pass in CI.
 5. Tests exist for stateful/security-sensitive behavior where practical.
 6. Documentation/env examples are updated when configuration changes.
-7. Production-only external dependencies are clearly marked when they cannot be validated without credentials.
+7. Production-only external dependencies are clearly marked when they cannot be validated without credentials or provider approval.
 
 ## Current implementation sprint
 
-Working branch: `build/p0-tests-rate-limit-core`
+Working branch: `build/p0-payment-ledger`
 
-- [x] Add pure, reusable proposal-award and milestone-action authorization/state policies.
-- [x] Add Node 22 automated tests for proposal ownership/idempotency, milestone role/state boundaries and rate-limit behavior.
-- [x] Add Firestore-backed distributed rate limiting with hashed identities.
-- [x] Apply rate limiting to session creation, claim verification, proposals, contract chat and support writes.
-- [x] Add `npm test` as a CI merge gate before typecheck, lint and production build.
+- [x] Add explicit milestone `paymentStatus` with backwards-compatible mapping for existing contracts.
+- [x] Add stable provider idempotency keys and persist pending provider actions.
+- [x] Add provider-confirmed funding/release/refund transitions.
+- [x] Write provider event receipt, action receipt and immutable ledger entry atomically with confirmed contract state.
+- [x] Persist provider funding/release/refund action IDs on milestones and ledger records.
+- [x] Ensure only confirmed funding can set `messagingUnlockedAt`.
+- [x] Remove optimistic money-state writes from normal milestone actions and admin dispute outcomes.
+- [x] Remove obsolete duplicate milestone-funding endpoint that bypassed the new state machine.
+- [x] Block the mock provider whenever `NODE_ENV=production`.
+- [x] Document provider eligibility and selection criteria in `docs/PAYMENTS_PROVIDER_DECISION.md`.
+- [ ] Confirm the platform legal-entity jurisdiction and launch payout countries.
+- [ ] Select and implement the real marketplace provider adapter.
+- [ ] Add signed real-provider webhook ingestion and connect it to the idempotent event processor.
+- [ ] Add payout onboarding/status, reconciliation, and platform fee calculation.
 
 ### Validation note
 
-The first hardening run exposed a pre-existing toolchain incompatibility: TypeScript 7.0.2 could not be loaded by the `typescript-eslint` version used by Next 16.3.3, and ESLint 10 was outside the peer range of bundled plugins. The repo pins `typescript` to Microsoft's TypeScript 6 compatibility package (`@typescript/typescript6@6.0.3`) and ESLint 9.39.5, with a regenerated committed lockfile.
+The tests/rate-limit sprint established Node 22 automated policy tests and the CI gate. The payment-core sprint increases that suite to 16 tests, adding payment transition and production-provider guard coverage.
 
-The P0 tests/rate-limit sprint adds 11 automated policy tests using Node 22's built-in test runner. The first run proved all 11 tests passed and exposed only the TypeScript `.ts` import setting; after enabling `allowImportingTsExtensions` for this no-emit project, CI passed `npm ci`, all 11 tests, typecheck, lint and the production Next.js build. Broad route-level API, Firebase emulator and E2E coverage remains tracked separately in the Test plan and is not implied by this checkbox.
+During validation, CI found two pre-existing payment paths still using the old optimistic provider interface: the obsolete `/api/milestones/[id]/fund` endpoint and admin dispute resolution. The obsolete endpoint had no application caller and was removed; dispute release/refund was migrated to the same pending -> provider confirmation -> ledger path. After those fixes, CI passed `npm ci`, all 16 tests, typecheck, lint and the production Next.js build. A documentation-only provider-decision commit was then validated by the same CI pipeline before payment-core tasks were checked.
+
+The provider comparison is intentionally not the same as provider selection. Current public eligibility documentation must be rechecked against the actual legal entity and launch countries before the real adapter, webhook and payout flows can be implemented.
