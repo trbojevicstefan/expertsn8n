@@ -12,7 +12,8 @@ type Expert = { name: string; slug: string; title: string };
 
 async function completeClaim(): Promise<{ photoLinked: boolean }> {
   if (!firebaseAuth?.currentUser) throw new Error("Sign-in did not complete.");
-  const idToken = await firebaseAuth.currentUser.getIdToken();
+  // Forced refresh so a display name set moments earlier is in the token.
+  const idToken = await firebaseAuth.currentUser.getIdToken(true);
   const res = await fetch("/api/claim/complete", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

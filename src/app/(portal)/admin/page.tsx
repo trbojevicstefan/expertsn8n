@@ -20,23 +20,44 @@ async function count(collection: string, filter?: [string, string | boolean]): P
 export default async function Admin() {
   await requireAdmin();
 
-  const [published, unclaimed, verified, openJobs, pendingDocs] = await Promise.all([
-    count("expertProfiles", ["status", "PUBLISHED"]),
-    count("expertProfiles", ["claimState", "UNCLAIMED"]),
-    count("expertProfiles", ["verified", true]),
-    count("jobs", ["status", "OPEN"]),
-    count("expertDocuments", ["reviewState", "PENDING"]),
-  ]);
+  const [published, awaitingReview, unclaimed, verified, openJobs, pendingDocs, pendingShowcases] =
+    await Promise.all([
+      count("expertProfiles", ["status", "PUBLISHED"]),
+      // Self-signups land here and stay out of the directory until reviewed.
+      count("expertProfiles", ["status", "SUBMITTED"]),
+      count("expertProfiles", ["claimState", "UNCLAIMED"]),
+      count("expertProfiles", ["verified", true]),
+      count("jobs", ["status", "OPEN"]),
+      count("expertDocuments", ["reviewState", "PENDING"]),
+      count("expertShowcases", ["reviewState", "PENDING"]),
+    ]);
 
   const kpis: [string, string | number][] = [
-    ["Published profiles", published],
+    ["In the directory", published],
+    ["Awaiting review", awaitingReview],
     ["Unclaimed", unclaimed],
     ["Verified", verified],
-    ["Open jobs", openJobs],
     ["Documents pending", pendingDocs],
   ];
 
   const queues = [
+    awaitingReview > 0
+      ? {
+          title: `${awaitingReview} profile${awaitingReview === 1 ? "" : "s"} awaiting review`,
+          body: "Signed up through the site and not visible in the directory until published.",
+          href: "/admin/experts",
+        }
+      : null,
+    pendingShowcases > 0
+      ? {
+          title: `${pendingShowcases} showcase${pendingShowcases === 1 ? "" : "s"} awaiting review`,
+          body: "Submitted work samples stay hidden on the public profile until approved.",
+          href: "/admin/experts",
+        }
+      : null,
+    openJobs > 0
+      ? { title: `${openJobs} open job${openJobs === 1 ? "" : "s"}`, body: "Publicly listed and accepting proposals.", href: "/jobs" }
+      : null,
     published - verified > 0
       ? {
           title: `${published - verified} profile${published - verified === 1 ? "" : "s"} not yet verified`,

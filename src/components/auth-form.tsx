@@ -7,7 +7,10 @@ import { BriefcaseBusiness, UserRoundSearch } from "lucide-react";
 
 async function establishSession(role?:UserRole){
   if(!firebaseAuth?.currentUser) throw new Error("Authentication session was not created.");
-  const token=await firebaseAuth.currentUser.getIdToken();
+  // Force a refresh: on sign-up the display name is set moments earlier, and a
+  // cached token would still be missing the name claim, which is how accounts
+  // ended up with an email prefix where their name should be.
+  const token=await firebaseAuth.currentUser.getIdToken(true);
   const res=await fetch("/api/auth/session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({idToken:token,role})});
   if(!res.ok) throw new Error((await res.json()).error||"Could not create secure session.");
 }
