@@ -5,14 +5,6 @@ import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import type { ContractMilestone } from "@/lib/types";
 
-/**
- * Accepting a proposal is what creates a contract. Nothing did this before, so
- * a proposal was a dead end: it could be sent and read, and then the trail
- * stopped.
- *
- * The value is split into two milestones so there is something to fund now and
- * something held back against delivery, which is the whole point of the model.
- */
 function initialMilestones(total: number): ContractMilestone[] {
   const first = Math.round(total / 2);
   return [
@@ -31,53 +23,113 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   const { id } = await params;
   const db = adminDb();
   const proposalRef = db.collection("proposals").doc(id);
-  const proposalSnap = await proposalRef.get();
-  if (!proposalSnap.exists) return NextResponse.json({ error: "Proposal not found." }, { status: 404 });
+  // A deterministic contract id makes retries safe even if the client repeats
+  // the request after the first response is lost.
+  const contractRef = db.collection("contracts").doc(`proposal_${id}`);
 
-  const proposal = proposalSnap.data() || {};
-  if (proposal.clientId !== session.uid && !session.admin) {
-    return NextResponse.json({ error: "This proposal is not on your job." }, { status: 403 });
+  let notifyExpertUid = "";
+  let notifyJobTitle = "job";
+  let created = false;
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const proposalSnap = await tx.get(proposalRef);
+      if (!proposalSnap.exists) throw new Error("NOT_FOUND:Proposal not found.");
+
+      const proposal = proposalSnap.data() || {};
+      if (proposal.clientId !== session.uid && !session.admin) {
+        throw new Error("FORBIDDEN:This proposal is not on your job.");
+      }
+
+      if (proposal.status === "ACCEPTED") {
+        // Idempotent retry. The original contract id is authoritative, with the
+        // deterministic id as a fallback for records created by this version.
+        return;
+      }
+      if (["DECLINED", "WITHDRAWN"].includes(String(proposal.status))) {
+        throw new Error("CONFLICT:This proposal is no longer actionable.");
+      }
+      if (!proposal.jobId) throw new Error("CONFLICT:Proposal has no job.");
+
+      const jobRef = db.collection("jobs").doc(String(proposal.jobId));
+      const jobSnap = await tx.get(jobRef);
+      if (!jobSnap.exists) throw new Error("NOT_FOUND:Job not found.");
+      const job = jobSnap.data() || {};
+
+      if (job.clientId && job.clientId !== proposal.clientId) {
+        throw new Error("CONFLICT:Proposal and job ownership do not match.");
+      }
+      if (job.status === "FILLED") {
+        throw new Error("CONFLICT:This job already has an accepted proposal.");
+      }
+      if (!session.admin && job.clientId !== session.uid) {
+        throw new Error("FORBIDDEN:This job is not yours.");
+      }
+      if (!["OPEN", "MATCHING"].includes(String(job.status))) {
+        throw new Error("CONFLICT:This job is not accepting an award.");
+      }
+
+      const nowIso = new Date().toISOString();
+      const total = Number(proposal.price) || 0;
+      if (!Number.isFinite(total) || total <= 0) {
+        throw new Error("CONFLICT:Proposal price is invalid.");
+      }
+
+      tx.create(contractRef, {
+        jobId: proposal.jobId,
+        jobTitle: proposal.jobTitle || job.title || "",
+        proposalId: id,
+        clientId: proposal.clientId,
+        clientName: job.clientName || session.name || session.email,
+        expertUid: proposal.expertUid,
+        expertId: proposal.expertId,
+        expertName: proposal.expertName || "",
+        totalAmount: total,
+        currency: proposal.currency || "EUR",
+        status: "ACTIVE",
+        messagingUnlockedAt: null,
+        milestones: initialMilestones(total),
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+
+      tx.set(
+        proposalRef,
+        { status: "ACCEPTED", contractId: contractRef.id, updatedAt: nowIso },
+        { merge: true },
+      );
+      tx.set(
+        jobRef,
+        {
+          status: "FILLED",
+          acceptedProposalId: id,
+          contractId: contractRef.id,
+          updatedAt: nowIso,
+        },
+        { merge: true },
+      );
+
+      notifyExpertUid = typeof proposal.expertUid === "string" ? proposal.expertUid : "";
+      notifyJobTitle = String(proposal.jobTitle || job.title || "job");
+      created = true;
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not accept proposal.";
+    const [kind, detail] = message.includes(":") ? message.split(/:(.*)/s, 2) : ["BAD_REQUEST", message];
+    const status = kind === "NOT_FOUND" ? 404 : kind === "FORBIDDEN" ? 403 : kind === "CONFLICT" ? 409 : 400;
+    return NextResponse.json({ error: detail || "Could not accept proposal." }, { status });
   }
-  if (proposal.status === "ACCEPTED") {
-    return NextResponse.json({ error: "This proposal has already been accepted." }, { status: 409 });
+
+  if (!created) {
+    const snap = await proposalRef.get();
+    const existingContractId = String((snap.data() || {}).contractId || contractRef.id);
+    return NextResponse.json({ ok: true, contractId: existingContractId, idempotent: true });
   }
 
-  const jobRef = db.collection("jobs").doc(proposal.jobId);
-  const job = (await jobRef.get()).data() || {};
-  const nowIso = new Date().toISOString();
-  const total = Number(proposal.price) || 0;
-
-  const contractRef = db.collection("contracts").doc();
-  const batch = db.batch();
-
-  batch.set(contractRef, {
-    jobId: proposal.jobId,
-    jobTitle: proposal.jobTitle || job.title || "",
-    proposalId: id,
-    clientId: proposal.clientId,
-    clientName: job.clientName || session.name || session.email,
-    expertUid: proposal.expertUid,
-    expertId: proposal.expertId,
-    expertName: proposal.expertName || "",
-    totalAmount: total,
-    currency: proposal.currency || "EUR",
-    status: "ACTIVE",
-    // Stays null until money is actually held. The contact guard depends on it.
-    messagingUnlockedAt: null,
-    milestones: initialMilestones(total),
-    createdAt: nowIso,
-    updatedAt: nowIso,
-  });
-
-  batch.set(proposalRef, { status: "ACCEPTED", contractId: contractRef.id, updatedAt: nowIso }, { merge: true });
-  batch.set(jobRef, { status: "FILLED", updatedAt: nowIso }, { merge: true });
-
-  await batch.commit();
-
-  if (proposal.expertUid) {
-    await notifyUser(proposal.expertUid, {
+  if (notifyExpertUid) {
+    await notifyUser(notifyExpertUid, {
       type: "MESSAGE",
-      title: `Your proposal was accepted: ${proposal.jobTitle || "job"}`,
+      title: `Your proposal was accepted: ${notifyJobTitle}`,
       body: "A contract has been created. Messaging opens when the first milestone is funded.",
       href: `/contracts/${contractRef.id}`,
     });
