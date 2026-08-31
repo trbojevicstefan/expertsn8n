@@ -101,9 +101,17 @@ export interface ContractMilestone {
   title: string;
   amount: number;
   status: MilestoneStatus;
+  /** Provider-facing money truth. Optional only for backwards compatibility
+   *  with contracts created before the payment-ledger migration. */
+  paymentStatus?: import("./payments/state").PaymentStatus;
+  paymentProvider?: string | null;
+  providerFundingId?: string | null;
+  providerReleaseId?: string | null;
+  providerRefundId?: string | null;
   fundedAt?: string | null;
   submittedAt?: string | null;
   releasedAt?: string | null;
+  refundedAt?: string | null;
   submissionNote?: string;
 }
 
@@ -120,7 +128,7 @@ export interface Contract {
   totalAmount: number;
   currency: string;
   status: ContractStatus;
-  /** Set the moment the first milestone is funded. Until then the contact
+  /** Set only from a provider-confirmed funding event. Until then the contact
    *  guard applies and file exchange stays closed. */
   messagingUnlockedAt: string | null;
   milestones: ContractMilestone[];
@@ -136,6 +144,22 @@ export interface ContractMessage {
   authorName: string;
   body: string;
   createdAt: string;
+}
+
+export interface LedgerEntry {
+  id: string;
+  provider: string;
+  providerEventId: string;
+  providerActionId: string;
+  entryType: "FUNDING" | "RELEASE" | "REFUND" | "PLATFORM_FEE";
+  contractId: string;
+  milestoneId: string;
+  amount: number;
+  currency: string;
+  paymentStatus: import("./payments/state").PaymentStatus;
+  occurredAt: string;
+  processedAt: string;
+  immutable: true;
 }
 
 export type TicketKind = "GENERAL" | "DISPUTE";
