@@ -18,7 +18,8 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - Server Route Handlers for privileged mutations
 - Payment provider abstraction with a development-only mock provider
 - Zod validation on important write endpoints
-- GitHub Actions CI for typecheck, lint and production build
+- Firestore-backed distributed rate limiting for sensitive write endpoints
+- GitHub Actions CI for tests, typecheck, lint and production build
 
 ## Confirmed product flows already present
 
@@ -42,8 +43,8 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 - [x] Verify uploaded document metadata against the actual Storage object before persisting it to Firestore.
 - [x] Add baseline HTTP security headers (frame protection, MIME sniffing protection, referrer policy, permissions policy and CSP baseline).
 - [x] Make CI deterministic with `npm ci` and keep typecheck + lint + production build as merge gates.
-- [ ] Add automated tests for auth/authorization boundaries, proposal acceptance and milestone state transitions.
-- [ ] Add request rate limiting for auth/session, claim verification, proposal creation, messaging and support endpoints.
+- [x] Add automated tests for auth/authorization boundaries, proposal acceptance and milestone state transitions.
+- [x] Add request rate limiting for auth/session, claim verification, proposal creation, messaging and support endpoints.
 
 ## P0 - Payments and money movement
 
@@ -175,14 +176,16 @@ A task can be checked only when all applicable conditions are true:
 
 ## Current implementation sprint
 
-Working branch: `build/marketplace-hardening`
+Working branch: `build/p0-tests-rate-limit-core`
 
-- [x] Atomic/idempotent proposal acceptance
-- [x] Storage cleanup + object verification for expert documents
-- [x] Baseline HTTP security headers
-- [x] Deterministic CI (`npm ci`)
-- [x] Re-run CI and mark completed items above
+- [x] Add pure, reusable proposal-award and milestone-action authorization/state policies.
+- [x] Add Node 22 automated tests for proposal ownership/idempotency, milestone role/state boundaries and rate-limit behavior.
+- [x] Add Firestore-backed distributed rate limiting with hashed identities.
+- [x] Apply rate limiting to session creation, claim verification, proposals, contract chat and support writes.
+- [x] Add `npm test` as a CI merge gate before typecheck, lint and production build.
 
 ### Validation note
 
-The first hardening run exposed a pre-existing toolchain incompatibility: TypeScript 7.0.2 could not be loaded by the `typescript-eslint` version used by Next 16.3.3, and ESLint 10 was outside the peer range of bundled plugins. The branch now pins `typescript` to Microsoft's TypeScript 6 compatibility package (`@typescript/typescript6@6.0.3`) and ESLint 9.39.5, with a regenerated committed lockfile. Final read-only CI validation passed `npm ci`, typecheck, lint, and the production Next.js build before these tasks were checked.
+The first hardening run exposed a pre-existing toolchain incompatibility: TypeScript 7.0.2 could not be loaded by the `typescript-eslint` version used by Next 16.3.3, and ESLint 10 was outside the peer range of bundled plugins. The repo pins `typescript` to Microsoft's TypeScript 6 compatibility package (`@typescript/typescript6@6.0.3`) and ESLint 9.39.5, with a regenerated committed lockfile.
+
+The P0 tests/rate-limit sprint adds 11 automated policy tests using Node 22's built-in test runner. The first run proved all 11 tests passed and exposed only the TypeScript `.ts` import setting; after enabling `allowImportingTsExtensions` for this no-emit project, CI passed `npm ci`, all 11 tests, typecheck, lint and the production Next.js build. Broad route-level API, Firebase emulator and E2E coverage remains tracked separately in the Test plan and is not implied by this checkbox.
