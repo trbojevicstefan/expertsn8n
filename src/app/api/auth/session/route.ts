@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { adminAuth, adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { cookieName } from "@/lib/auth/server";
+import { clientAddress, enforceRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   idToken: z.string().min(20),
@@ -90,6 +91,19 @@ async function ensureExpertProfile(uid: string, name: string, email: string): Pr
 }
 
 export async function POST(request: Request) {
+  if (!firebaseAdminConfigured) {
+    return NextResponse.json({ error: "Sign in is not available right now." }, { status: 503 });
+  }
+
+  const limited = await enforceRateLimit({
+    scope: "auth.session.ip",
+    identity: clientAddress(request),
+    limit: 30,
+    windowMs: 5 * 60 * 1000,
+    message: "Too many sign-in attempts. Try again in a few minutes.",
+  });
+  if (limited) return limited;
+
   try {
     const { idToken, role } = schema.parse(await request.json());
     const decoded = await adminAuth().verifyIdToken(idToken, true);
@@ -112,7 +126,6 @@ export async function POST(request: Request) {
       });
     } else {
       const update: Record<string, unknown> = { lastLoginAt: nowIso };
-      // A name that arrives on a later sign-in fills a gap left by an earlier one.
       if (decoded.name && !(existing.data() || {}).name) update.name = decoded.name;
       await userRef.update(update);
     }
@@ -131,10 +144,8 @@ export async function POST(request: Request) {
       maxAge: Math.floor(expiresIn / 1000),
     });
     return res;
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Unable to create session" },
-      { status: 400 },
-    );
+  } catch {
+    // Do not echo Firebase token/verification details back to an unauthenticated caller.
+    return NextResponse.json({ error: "Unable to create session." }, { status: 400 });
   }
 }
