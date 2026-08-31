@@ -1714,3 +1714,24 @@ a.admin-kpi:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
 .attach-zone-json svg { color: var(--accent); }
 
 @media (max-width: 900px) { .attach-zones { grid-template-columns: 1fr; } }
+
+/* ---------- showcase review actions ---------- */
+
+.sc-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.sc-review { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.sc-review-error { font-size: 11.5px; color: var(--danger); }
+
+/* ---------- bulk selection ---------- */
+
+.bulk-bar { padding: 16px 18px; margin-bottom: 14px; display: grid; gap: 11px; border-color: var(--ink); }
+.bulk-head { display: flex; align-items: center; gap: 12px; }
+.bulk-head strong { font-size: 14px; }
+.bulk-clear { border: 0; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; margin-left: auto; }
+.bulk-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.bulk-bar .info-box, .bulk-bar .error-box { margin: 0; }
+
+.data-table .cb-col { width: 38px; padding-right: 0; }
+.data-table input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+.data-table tr.is-selected { background: var(--accent-soft); }
+
+.sc-bulk { display: inline-flex; align-items: center; gap: 8px; }

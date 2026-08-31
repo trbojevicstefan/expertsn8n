@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/empty-state";
 import { AdminReviewActions } from "@/components/admin-review-actions";
 import { MessageThread } from "@/components/message-thread";
 import { ShowcaseAttachments } from "@/components/showcase-attachments";
+import { ShowcaseReviewActions } from "@/components/showcase-review-actions";
+import { ShowcaseBulkApprove } from "@/components/showcase-bulk-approve";
 import { threadFor } from "@/lib/expert-messages";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { MISSING_FIELD_LABELS } from "@/lib/expert-account";
@@ -189,7 +191,12 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
           </section>
 
           <section className="panel card">
-            <div className="panel-head"><h2>Showcases</h2></div>
+            <div className="panel-head">
+              <h2>Showcases</h2>
+              <ShowcaseBulkApprove
+                ids={showcases.filter((s) => (s.reviewState || "PENDING") !== "APPROVED").map((s) => s.id)}
+              />
+            </div>
             {showcases.length === 0 ? (
               <EmptyState
                 icon={<FileText size={20} strokeWidth={1.9} />}
@@ -200,9 +207,12 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
               <div className="showcase-grid">
                 {showcases.map((s) => (
                   <article className="showcase-card" key={s.id}>
-                    <StatusBadge tone={s.reviewState === "APPROVED" ? "success" : "warning"}>
-                      {s.reviewState || "PENDING"}
-                    </StatusBadge>
+                    <div className="sc-head">
+                      <StatusBadge tone={s.reviewState === "APPROVED" ? "success" : s.reviewState === "REJECTED" ? "danger" : "warning"}>
+                        {s.reviewState || "PENDING"}
+                      </StatusBadge>
+                      <ShowcaseReviewActions showcaseId={s.id} reviewState={s.reviewState || "PENDING"} />
+                    </div>
                     <h3>{s.title}</h3>
                     <p>{s.summary}</p>
                     <span className="outcome">{s.outcome}</span>

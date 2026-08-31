@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Search, UserRoundSearch } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/server";
-import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
-import { Avatar } from "@/components/avatar";
+import { AdminExpertsTable } from "@/components/admin-experts-table";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import type { ExpertProfile } from "@/lib/types";
 
@@ -141,54 +140,7 @@ export default async function AdminExperts({
           }
         />
       ) : (
-        <div className="data-card card">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Expert</th><th>Source</th><th>Claim</th><th>Photo</th><th>Outstanding</th><th>State</th><th />
-              </tr>
-            </thead>
-            <tbody>
-              {experts.map((e) => (
-                <tr key={e.id}>
-                  <td>
-                    <div className="table-person">
-                      <Avatar name={e.name} src={e.photoUrl} size="sm" />
-                      <div>
-                        <strong>{e.name}</strong><br />
-                        <span className="muted">{e.location || e.country || "Location not stated"}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="muted">{e.source === "application" ? "Application" : "Self signup"}</td>
-                  <td>
-                    <StatusBadge tone={e.claimState === "CLAIMED" ? "success" : "neutral"}>
-                      {e.claimState || "UNCLAIMED"}
-                    </StatusBadge>
-                  </td>
-                  <td>
-                    <StatusBadge tone={e.photoStatus === "APPROVED" ? "success" : e.photoStatus === "PENDING_REVIEW" ? "warning" : "danger"}>
-                      {e.photoStatus || "MISSING"}
-                    </StatusBadge>
-                  </td>
-                  <td className="muted">
-                    {e.missingFields?.length ? `${e.missingFields.length} field${e.missingFields.length === 1 ? "" : "s"}` : "None"}
-                  </td>
-                  <td>
-                    <StatusBadge tone={e.verified ? "success" : e.status === "PUBLISHED" ? "info" : "warning"}>
-                      {e.verified ? "VERIFIED" : e.status}
-                    </StatusBadge>
-                  </td>
-                  <td className="text-right">
-                    <Link className="button button-secondary button-sm" href={`/admin/experts/${e.id}`}>
-                      Review
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminExpertsTable experts={experts} />
       )}
     </>
   );
