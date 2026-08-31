@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
+import { privateJobInviteAccess } from "@/lib/marketplace-policy";
 import { notifyUser } from "@/lib/notifications";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
@@ -47,13 +48,33 @@ export async function POST(req: Request) {
     const expertId = (userSnap.data() || {}).expertId || session.uid;
     const profile = (await db.collection("expertProfiles").doc(expertId).get()).data() || {};
 
+    if (job.visibility === "PRIVATE") {
+      const inviteSnap = await db
+        .collection("jobInvites")
+        .where("jobId", "==", input.jobId)
+        .where("expertUid", "==", session.uid)
+        .limit(10)
+        .get();
+      const accepted = inviteSnap.docs.some((doc) => {
+        const invite = doc.data() || {};
+        return privateJobInviteAccess({
+          inviteStatus: String(invite.status || "SENT"),
+          expiresAt: typeof invite.expiresAt === "string" ? invite.expiresAt : null,
+          jobStatus: String(job.status || ""),
+          nowMs: Date.now(),
+        }).canApply;
+      });
+      if (!accepted) throw new Error("Accept the private invitation before sending a proposal.");
+    }
+
     const existing = await db
       .collection("proposals")
       .where("jobId", "==", input.jobId)
       .where("expertUid", "==", session.uid)
-      .limit(1)
+      .limit(10)
       .get();
-    if (!existing.empty) throw new Error("You have already sent a proposal for this job.");
+    const actionableExisting = existing.docs.some((doc) => !["WITHDRAWN", "DECLINED"].includes(String((doc.data() || {}).status)));
+    if (actionableExisting) throw new Error("You already have an active proposal for this job.");
 
     const nowIso = new Date().toISOString();
     const ref = db.collection("proposals").doc();
@@ -67,8 +88,9 @@ export async function POST(req: Request) {
       expertName: profile.name || session.name || session.email,
       delivery: `${input.deliveryDays} day${input.deliveryDays === 1 ? "" : "s"}`,
       status: "SUBMITTED",
-      currency: "EUR",
+      currency: job.currency || "EUR",
       createdAt: nowIso,
+      updatedAt: nowIso,
     });
 
     await jobRef.set({ proposalCount: FieldValue.increment(1), updatedAt: nowIso }, { merge: true });
@@ -77,8 +99,8 @@ export async function POST(req: Request) {
       await notifyUser(job.clientId, {
         type: "MESSAGE",
         title: `New proposal on ${job.title}`,
-        body: `${profile.name || "An expert"} proposed €${input.price.toLocaleString()} over ${input.deliveryDays} days.`,
-        href: "/dashboard/client/jobs",
+        body: `${profile.name || "An expert"} proposed ${(job.currency || "EUR")} ${input.price.toLocaleString()} over ${input.deliveryDays} days.`,
+        href: "/dashboard/client/proposals",
       });
     }
 
