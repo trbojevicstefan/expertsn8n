@@ -9,8 +9,20 @@ import type { ContractMilestone } from "@/lib/types";
 function initialMilestones(total: number): ContractMilestone[] {
   const first = Math.round(total / 2);
   return [
-    { id: randomUUID(), title: "Milestone 1 — build", amount: first, status: "AWAITING_FUNDING" },
-    { id: randomUUID(), title: "Milestone 2 — handover", amount: total - first, status: "DRAFT" },
+    {
+      id: randomUUID(),
+      title: "Milestone 1 — build",
+      amount: first,
+      status: "AWAITING_FUNDING",
+      paymentStatus: "UNFUNDED",
+    },
+    {
+      id: randomUUID(),
+      title: "Milestone 2 — handover",
+      amount: total - first,
+      status: "DRAFT",
+      paymentStatus: "UNFUNDED",
+    },
   ];
 }
 
@@ -36,7 +48,6 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       if (!proposalSnap.exists) throw new Error("NOT_FOUND:Proposal not found.");
 
       const proposal = proposalSnap.data() || {};
-      // Preserve retry safety even if the associated job is later archived.
       if (proposal.status === "ACCEPTED") return;
       if (!proposal.jobId) throw new Error("CONFLICT:Proposal has no job.");
 
