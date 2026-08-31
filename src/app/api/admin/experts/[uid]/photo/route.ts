@@ -55,8 +55,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
       const publicPath = `${publicPrefix}photo.${ext}`;
       const token = randomUUID();
 
-      // Keep the previous approved image until this decision, then atomically
-      // switch the profile URL after the new public object exists.
       try {
         await bucket.deleteFiles({ prefix: publicPrefix });
       } catch {
@@ -112,15 +110,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
       updatedAt: nowIso,
     };
 
-    if (hasApprovedPhoto) {
+    if (pendingPath && hasApprovedPhoto) {
+      // Rejecting a replacement never removes the last approved photo.
       patch.photoStatus = "APPROVED";
       missing.delete("photo");
     } else {
+      // No private replacement means this is an explicit moderation removal (or
+      // cleanup of the legacy pending-public behavior).
       patch.photoStatus = "MISSING";
       patch.photoUrl = "";
       missing.add("photo");
-      // Also cleans up legacy behavior where a PENDING_REVIEW photo had already
-      // been copied under public/ before this hardened review flow existed.
       try {
         await bucket.deleteFiles({ prefix: `public/experts/${expertId}/` });
       } catch {
@@ -131,25 +130,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
     await ref.set(patch, { merge: true });
   }
 
+  const keptPreviousApprovedPhoto = input.photoStatus === "MISSING" && Boolean(pendingPath) && hasApprovedPhoto;
   await recordAuditEvent({
     actor: session,
-    action: input.photoStatus === "APPROVED" ? "EXPERT_PHOTO_APPROVED" : "EXPERT_PHOTO_REJECTED",
+    action: input.photoStatus === "APPROVED" ? "EXPERT_PHOTO_APPROVED" : pendingPath ? "EXPERT_PHOTO_REJECTED" : "EXPERT_PHOTO_REMOVED",
     targetType: "expertProfile",
     targetId: expertId,
-    metadata: { hadPendingPrivatePhoto: Boolean(pendingPath), keptPreviousApprovedPhoto: input.photoStatus === "MISSING" && hasApprovedPhoto },
+    metadata: { hadPendingPrivatePhoto: Boolean(pendingPath), keptPreviousApprovedPhoto },
   });
 
   const ownerUid = await ownerUidFor(expertId);
   if (ownerUid) {
     await notifyUser(ownerUid, {
       type: "REVIEW_DECISION",
-      title: input.photoStatus === "APPROVED" ? "Your profile photo was approved" : "Your new profile photo was not approved",
+      title:
+        input.photoStatus === "APPROVED"
+          ? "Your profile photo was approved"
+          : keptPreviousApprovedPhoto
+            ? "Your replacement photo was not approved"
+            : "Your profile photo needs attention",
       body:
         input.photoStatus === "APPROVED"
           ? "The reviewed photo is now the public profile image."
-          : hasApprovedPhoto
+          : keptPreviousApprovedPhoto
             ? "Your previous approved photo remains live. You can upload another replacement."
-            : "The pending photo stayed private and was removed. Please upload another one.",
+            : "The reviewed photo was removed from the public profile. Please upload another one.",
       href: "/dashboard/expert/profile",
       expertId,
     });
