@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { recordContractActivity, type ContractActivityInput } from "@/lib/contract-activity";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import {
@@ -160,7 +161,17 @@ export async function processConfirmedProviderPaymentEvent(
           paymentStatus: following.paymentStatus || "UNFUNDED",
         };
       }
-      if (milestones.every((m) => m.status === "RELEASED")) contractPatch.status = "COMPLETED";
+      const completedNow = milestones.every((m) => m.status === "RELEASED");
+      if (completedNow) {
+        contractPatch.status = "COMPLETED";
+        if (contract.status !== "COMPLETED" && contract.expertId) {
+          tx.set(
+            db.collection("expertProfiles").doc(contract.expertId),
+            { completedProjects: FieldValue.increment(1), updatedAt: nowIso },
+            { merge: true },
+          );
+        }
+      }
     }
 
     const receipt = {
