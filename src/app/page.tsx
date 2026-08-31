@@ -94,66 +94,70 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="hero-panel">
-              <div className="hero-panel-top">
-                <strong>Available this week</strong>
-                <span className="status status-success">Live directory</span>
-              </div>
-              <div className="mini-search">
-                <Search size={16} />
-                Search n8n, HubSpot, AI agents…
-              </div>
-              {experts.slice(0, 3).map((e) => (
-                <div className="mini-expert" key={e.id}>
-                  <Avatar name={e.name} src={e.photoUrl} size="sm" />
-                  <div>
-                    <strong>{e.name}</strong>
-                    <p>{e.title}</p>
-                  </div>
-                  <div className="mini-rate">
-                    <strong>{e.hourlyRate > 0 ? `€${e.hourlyRate}/hr` : "On request"}</strong>
-                    <br />
-                    {e.availability || "Ask for availability"}
-                  </div>
+            {experts.length > 0 && (
+              <div className="hero-panel">
+                <div className="hero-panel-top">
+                  <strong>Available this week</strong>
+                  <span className="status status-success">Live directory</span>
                 </div>
-              ))}
-              <div className="hero-panel-foot">
-                <span><ShieldCheck size={14} strokeWidth={2.2} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />Review status shown on every profile</span>
-                <Link className="text-link" href="/experts" style={{ fontSize: 12 }}>
-                  See all <ArrowRight size={12} strokeWidth={2.4} style={{ display: "inline", verticalAlign: "-1px" }} />
-                </Link>
+                <div className="mini-search">
+                  <Search size={16} />
+                  Search n8n, HubSpot, AI agents…
+                </div>
+                {experts.slice(0, 3).map((e) => (
+                  <div className="mini-expert" key={e.id}>
+                    <Avatar name={e.name} src={e.photoUrl} size="sm" />
+                    <div>
+                      <strong>{e.name}</strong>
+                      <p>{e.title}</p>
+                    </div>
+                    <div className="mini-rate">
+                      <strong>{e.hourlyRate > 0 ? `€${e.hourlyRate}/hr` : "On request"}</strong>
+                      <br />
+                      {e.availability || "Ask for availability"}
+                    </div>
+                  </div>
+                ))}
+                <div className="hero-panel-foot">
+                  <span><ShieldCheck size={14} strokeWidth={2.2} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />Review status shown on every profile</span>
+                  <Link className="text-link" href="/experts" style={{ fontSize: 12 }}>
+                    See all <ArrowRight size={12} strokeWidth={2.4} style={{ display: "inline", verticalAlign: "-1px" }} />
+                  </Link>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </section>
 
-        <TrustBar stats={stats} />
+        {stats.experts > 0 && <TrustBar stats={stats} />}
         <LogoStrip />
         <DifferentiatorsSection />
         <VettingSection />
 
-        <section className="section">
-          <div className="container">
-            <div className="section-head">
-              <div>
-                <span className="eyebrow">Curated talent</span>
-                <h2>People who work in n8n every day.</h2>
+        {experts.length > 0 && (
+          <section className="section">
+            <div className="container">
+              <div className="section-head">
+                <div>
+                  <span className="eyebrow">Curated talent</span>
+                  <h2>People who work in n8n every day.</h2>
+                </div>
+                <p>
+                  Specialists who applied to us directly, with the stack and the work described in their own
+                  words. Open a profile to see whether it has been through review yet.
+                </p>
               </div>
-              <p>
-                Specialists who applied to us directly, with the stack and the work described in their own
-                words. Open a profile to see whether it has been through review yet.
-              </p>
+              <div className="experts-grid">
+                {experts.map((e) => <ExpertCard key={e.id} expert={e} />)}
+              </div>
+              <div style={{ textAlign: "center", marginTop: 34 }}>
+                <Link href="/experts" className="button button-secondary button-lg">
+                  Browse all experts <ArrowRight size={16} strokeWidth={2.2} />
+                </Link>
+              </div>
             </div>
-            <div className="experts-grid">
-              {experts.map((e) => <ExpertCard key={e.id} expert={e} />)}
-            </div>
-            <div style={{ textAlign: "center", marginTop: 34 }}>
-              <Link href="/experts" className="button button-secondary button-lg">
-                Browse all experts <ArrowRight size={16} strokeWidth={2.2} />
-              </Link>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <UseCasesSection />
         <HowItWorksSection />

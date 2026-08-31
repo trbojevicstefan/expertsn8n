@@ -1,1 +1,10 @@
-import { ExpertOnboardingForm } from "@/components/expert-onboarding-form";import { requireSession } from "@/lib/auth/server";export default async function ExpertOnboarding(){const session=await requireSession();return <><div className="portal-head"><div><h1>Build your expert profile</h1><p>Complete every required field before submitting for review.</p></div></div><ExpertOnboardingForm uid={session.uid}/></>}
+import { redirect } from "next/navigation";
+
+/**
+ * Onboarding used to be a cut-down form that created the profile, after which
+ * the real editor only appeared on a reload. The profile is now created when
+ * the account is, so there is one editor and people land on it directly.
+ */
+export default function ExpertOnboarding() {
+  redirect("/dashboard/expert/profile");
+}

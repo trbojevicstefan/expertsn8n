@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ref, uploadBytes } from "firebase/storage";
-import { AlertTriangle, CheckCircle2, FileText, Plus, Trash2, Upload, UserRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Plus, Send, Trash2, Upload, UserRound } from "lucide-react";
 import { firebaseStorage } from "@/lib/firebase/client";
 import type { ExpertDocument, ExpertProfile } from "@/lib/types";
 
@@ -40,6 +41,7 @@ export function ProfileEditor({
   documents: ExpertDocument[];
   photoRequired: boolean;
 }) {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: profile.name || "",
     companyName: profile.companyName || "",
@@ -91,6 +93,9 @@ export function ProfileEditor({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save.");
       setMsg({ tone: "ok", text: "Profile saved." });
+      // The completeness bar is rendered on the server, so it only moves once
+      // the route data is refetched.
+      router.refresh();
     } catch (err) {
       setMsg({ tone: "err", text: err instanceof Error ? err.message : "Could not save." });
     } finally {
@@ -114,6 +119,7 @@ export function ProfileEditor({
       if (!res.ok) throw new Error(data.error || "Could not publish the photo.");
       setPhotoUrl(data.photoUrl);
       setMsg({ tone: "ok", text: "Photo published to your profile." });
+      router.refresh();
     } catch (err) {
       setMsg({ tone: "err", text: err instanceof Error ? err.message : "Photo upload failed." });
     } finally {
@@ -150,6 +156,7 @@ export function ProfileEditor({
         ...d,
       ]);
       setMsg({ tone: "ok", text: `${file.name} uploaded.` });
+      router.refresh();
     } catch (err) {
       setMsg({ tone: "err", text: err instanceof Error ? err.message : "Upload failed." });
     } finally {
@@ -163,12 +170,31 @@ export function ProfileEditor({
       const res = await fetch(`/api/expert/documents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).error || "Could not remove the document.");
       setDocuments((d) => d.filter((x) => x.id !== id));
+      router.refresh();
     } catch (err) {
       setMsg({ tone: "err", text: err instanceof Error ? err.message : "Could not remove." });
     } finally {
       setBusy("");
     }
   };
+
+  const submitForReview = async () => {
+    setBusy("submit");
+    setMsg(null);
+    try {
+      const res = await fetch("/api/expert/submit-for-review", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not submit for review.");
+      setMsg({ tone: "ok", text: "Sent for review. We will message you here when it has been looked at." });
+      router.refresh();
+    } catch (err) {
+      setMsg({ tone: "err", text: err instanceof Error ? err.message : "Could not submit for review." });
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const canSubmit = profile.status === "DRAFT" || profile.status === "NEEDS_CHANGES";
 
   return (
     <form className="form-card card" onSubmit={save}>
@@ -437,9 +463,30 @@ export function ProfileEditor({
         </div>
       )}
 
-      <button className="button button-primary" disabled={busy === "save"} type="submit">
-        {busy === "save" ? "Saving…" : "Save changes"}
-      </button>
+      <div className="editor-actions">
+        <button className="button button-primary" disabled={busy === "save"} type="submit">
+          {busy === "save" ? "Saving…" : "Save changes"}
+        </button>
+
+        {canSubmit && (
+          <button
+            type="button"
+            className="button button-accent"
+            disabled={busy === "submit"}
+            onClick={submitForReview}
+          >
+            <Send size={15} strokeWidth={2.2} />
+            {busy === "submit" ? "Sending…" : "Submit for review"}
+          </button>
+        )}
+
+        {profile.status === "SUBMITTED" && (
+          <span className="editor-state">Waiting for review. You can keep editing while you wait.</span>
+        )}
+        {profile.status === "PUBLISHED" && (
+          <span className="editor-state">Live in the directory. Saved changes appear straight away.</span>
+        )}
+      </div>
     </form>
   );
 }

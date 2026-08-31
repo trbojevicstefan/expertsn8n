@@ -1,7 +1,9 @@
 import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
 import { ExpertCard } from "@/components/expert-card";
+import { EmptyState } from "@/components/empty-state";
 import { listPublishedExperts } from "@/lib/data";
+import { UserRoundSearch } from "lucide-react";
 
 // Profiles are claimed and edited continuously, so the directory reads live
 // rather than being frozen into the build output.
@@ -60,9 +62,18 @@ export default async function ExpertsPage() {
                 <option value="rate">Lowest rate</option>
               </select>
             </div>
-            <div className="results-list">
-              {experts.map((e) => <ExpertCard expert={e} key={e.id} />)}
-            </div>
+            {experts.length === 0 ? (
+              <EmptyState
+                icon={<UserRoundSearch size={22} strokeWidth={1.9} />}
+                title="No experts listed yet"
+                body="The directory is empty right now. If you build in n8n, apply and your profile can be the first one here."
+                action={{ label: "Apply as an expert", href: "/sign-up" }}
+              />
+            ) : (
+              <div className="results-list">
+                {experts.map((e) => <ExpertCard expert={e} key={e.id} />)}
+              </div>
+            )}
           </section>
         </div>
       </main>

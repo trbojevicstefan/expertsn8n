@@ -1677,3 +1677,40 @@ a.admin-kpi:hover { border-color: var(--line-2); box-shadow: var(--shadow); }
   .coverage { grid-template-columns: repeat(2, 1fr); }
   .filter-label { width: auto; }
 }
+
+/* ---------- editor actions ---------- */
+
+.editor-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.editor-state { font-size: 12.5px; color: var(--muted); }
+
+/* ---------- showcase upload zones ---------- */
+
+.attach-zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.attach-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  border: 1px dashed var(--line-2);
+  border-radius: 11px;
+  padding: 14px;
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.attach-zone:hover { border-color: var(--accent); background: var(--accent-soft); }
+.attach-zone svg { color: var(--ink-400); }
+.attach-zone:hover svg { color: var(--accent); }
+.attach-zone strong { font-size: 13px; }
+.attach-zone span { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+.attach-zone em {
+  font-style: normal;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.attach-zone-json { border-color: var(--accent-line); background: var(--accent-soft); }
+.attach-zone-json svg { color: var(--accent); }
+
+@media (max-width: 900px) { .attach-zones { grid-template-columns: 1fr; } }

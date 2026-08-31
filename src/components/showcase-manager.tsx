@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Paperclip, Plus, Trash2, Workflow, X } from "lucide-react";
+import { FileJson, ImagePlus, Paperclip, Plus, Trash2, Workflow, X } from "lucide-react";
 import { ShowcaseAttachments } from "./showcase-attachments";
 import { ref, uploadBytes } from "firebase/storage";
 import { firebaseStorage } from "@/lib/firebase/client";
@@ -240,16 +240,54 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
                   onRemove={(attId) => detach(s.id, attId)}
                   busyId={busy}
                 />
-                <label className="button button-secondary button-sm attach-add">
-                  <Paperclip size={14} strokeWidth={2.2} />
-                  {busy === `att-${s.id}` ? "Uploading…" : "Attach a file"}
-                  <input
-                    type="file"
-                    hidden
-                    onChange={(e) => e.target.files?.[0] && attach(s.id, e.target.files[0])}
-                  />
-                </label>
-                <span className="attach-hint">Screenshots of the workflow, an exported n8n JSON, PDFs — up to 25 MB. An n8n export is shown as a structure preview; its parameter values and credentials are never stored. Visible to you and reviewers only.</span>
+                <div className="attach-zones">
+                  <label className="attach-zone">
+                    <ImagePlus size={17} strokeWidth={1.9} />
+                    <strong>Screenshots</strong>
+                    <span>Your workflow canvas, dashboards, results. JPG, PNG or WebP.</span>
+                    <em>{busy === `att-${s.id}` ? "Uploading…" : "Choose images"}</em>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      hidden
+                      onChange={(e) => e.target.files?.[0] && attach(s.id, e.target.files[0])}
+                    />
+                  </label>
+
+                  <label className="attach-zone attach-zone-json">
+                    <FileJson size={17} strokeWidth={1.9} />
+                    <strong>n8n workflow JSON</strong>
+                    <span>
+                      Export from n8n and drop the .json here. We show the structure &mdash; nodes,
+                      connections, triggers, error handling.
+                    </span>
+                    <em>{busy === `att-${s.id}` ? "Uploading…" : "Choose a .json export"}</em>
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      hidden
+                      onChange={(e) => e.target.files?.[0] && attach(s.id, e.target.files[0])}
+                    />
+                  </label>
+
+                  <label className="attach-zone">
+                    <Paperclip size={17} strokeWidth={1.9} />
+                    <strong>Other documents</strong>
+                    <span>A write-up, an architecture diagram, a PDF report.</span>
+                    <em>{busy === `att-${s.id}` ? "Uploading…" : "Choose a file"}</em>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.md,.txt"
+                      hidden
+                      onChange={(e) => e.target.files?.[0] && attach(s.id, e.target.files[0])}
+                    />
+                  </label>
+                </div>
+                <span className="attach-hint">
+                  Up to 25&nbsp;MB per file, 10 per showcase. Everything here is private to you and
+                  reviewers. An n8n export is summarised to its structure &mdash; parameter values and
+                  credentials from the file are never stored or shown.
+                </span>
               </div>
             </article>
           ))}

@@ -9,7 +9,7 @@ import type { ExpertProfile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES = ["PUBLISHED", "SUBMITTED", "NEEDS_CHANGES", "REJECTED", "SUSPENDED"] as const;
+const STATUSES = ["PUBLISHED", "SUBMITTED", "DRAFT", "NEEDS_CHANGES", "REJECTED", "SUSPENDED"] as const;
 
 interface Filters {
   status?: string;
