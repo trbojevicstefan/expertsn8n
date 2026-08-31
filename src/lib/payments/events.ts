@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { recordContractActivity, type ContractActivityInput } from "@/lib/contract-activity";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import {
   confirmedPaymentTransition,
@@ -60,8 +61,9 @@ export async function processConfirmedProviderPaymentEvent(
     .doc(docKey(`${event.provider}:${event.kind}:${event.actionId}`));
   const ledgerRef = db.collection("ledgerEntries").doc(docKey(`${event.provider}:${event.kind}:${event.actionId}`));
   const contractRef = db.collection("contracts").doc(event.contractId);
+  let activity: ContractActivityInput | null = null;
 
-  return db.runTransaction(async (tx) => {
+  const result = await db.runTransaction(async (tx) => {
     const [eventSnap, actionSnap, contractSnap] = await Promise.all([
       tx.get(eventRef),
       tx.get(actionRef),
@@ -104,14 +106,44 @@ export async function processConfirmedProviderPaymentEvent(
     if (event.kind === "FUNDING_CONFIRMED") {
       next.fundedAt = occurredAt;
       next.providerFundingId = event.actionId;
+      activity = {
+        contractId: contract.id,
+        type: "MILESTONE_FUNDED",
+        actorUid: null,
+        actorName: event.provider,
+        milestoneId: milestone.id,
+        title: `Milestone funded: ${milestone.title}`,
+        detail: `${event.currency} ${event.amount.toLocaleString()} confirmed by payment provider.`,
+        createdAt: occurredAt,
+      };
     }
     if (event.kind === "RELEASE_CONFIRMED") {
       next.releasedAt = occurredAt;
       next.providerReleaseId = event.actionId;
+      activity = {
+        contractId: contract.id,
+        type: "MILESTONE_RELEASED",
+        actorUid: null,
+        actorName: event.provider,
+        milestoneId: milestone.id,
+        title: `Funds released: ${milestone.title}`,
+        detail: `${event.currency} ${event.amount.toLocaleString()} release confirmed.`,
+        createdAt: occurredAt,
+      };
     }
     if (event.kind === "REFUND_CONFIRMED") {
       next.refundedAt = occurredAt;
       next.providerRefundId = event.actionId;
+      activity = {
+        contractId: contract.id,
+        type: "DISPUTE_RESOLVED",
+        actorUid: null,
+        actorName: event.provider,
+        milestoneId: milestone.id,
+        title: `Funds refunded: ${milestone.title}`,
+        detail: `${event.currency} ${event.amount.toLocaleString()} refund confirmed.`,
+        createdAt: occurredAt,
+      };
     }
     milestones[idx] = next;
 
@@ -163,4 +195,7 @@ export async function processConfirmedProviderPaymentEvent(
       paymentStatus: transition.paymentStatus,
     };
   });
+
+  if (result.applied && activity) await recordContractActivity(activity);
+  return result;
 }
