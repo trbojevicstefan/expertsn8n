@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
+import { notifyAdmins } from "@/lib/notifications";
 
 const schema = z.object({
   title: z.string().min(5).max(120),
@@ -63,6 +64,15 @@ export async function POST(req: Request) {
     reviewState: "PENDING",
     createdAt: nowIso,
     updatedAt: nowIso,
+  });
+
+  const profile = await adminDb().collection("expertProfiles").doc(expertId).get();
+  await notifyAdmins({
+    type: "SHOWCASE_SUBMITTED",
+    title: `${(profile.data() || {}).name || "An expert"} submitted a showcase`,
+    body: input.title,
+    href: `/admin/experts/${expertId}`,
+    expertId,
   });
 
   return NextResponse.json({ id: ref.id, ok: true }, { status: 201 });

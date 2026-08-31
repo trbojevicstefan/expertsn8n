@@ -35,6 +35,13 @@ service firebase.storage {
         );
     }
 
+    // Files attached to a workflow showcase as evidence. Private to the expert
+    // and reviewers: a showcase can carry client material.
+    match /private/experts/{uid}/showcases/{showcaseId}/{fileName} {
+      allow read: if owner(uid) || admin();
+      allow write: if owner(uid) && request.resource.size < 25 * 1024 * 1024;
+    }
+
     match /private/experts/{uid}/workflow-staging/{fileName} {
       allow read: if owner(uid) || admin();
       allow write: if owner(uid) && request.resource.size < 10 * 1024 * 1024;

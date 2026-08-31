@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { notifyUser } from "@/lib/notifications";
+import { ownerUidFor, postMessage } from "@/lib/expert-messages";
 
 const schema = z.object({
   decision: z.enum(["VERIFIED", "NEEDS_CHANGES", "REJECTED", "SUSPENDED", "PUBLISHED"]),
@@ -31,6 +33,14 @@ function profilePatch(decision: z.infer<typeof schema>["decision"]) {
       return { verified: false, status: "SUSPENDED" };
   }
 }
+
+const DECISION_LABEL: Record<z.infer<typeof schema>["decision"], string> = {
+  VERIFIED: "verified",
+  PUBLISHED: "listed in the directory",
+  NEEDS_CHANGES: "changes requested",
+  REJECTED: "rejected",
+  SUSPENDED: "suspended",
+};
 
 export async function POST(req: Request, { params }: { params: Promise<{ uid: string }> }) {
   const session = await getSession();
@@ -69,6 +79,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ uid: st
     });
 
     await batch.commit();
+
+    // The reason is the useful part of a decision, so it lands in the expert's
+    // thread as well as in the notification.
+    const ownerUid = await ownerUidFor(uid);
+    if (ownerUid) {
+      await postMessage({
+        expertId: uid,
+        authorUid: session.uid,
+        authorRole: "admin",
+        authorName: session.name || "Marketplace review",
+        body: `Decision: ${DECISION_LABEL[input.decision]}.
+
+${input.reason}`,
+      });
+      await notifyUser(ownerUid, {
+        type: "REVIEW_DECISION",
+        title: `Your profile was reviewed: ${DECISION_LABEL[input.decision]}`,
+        body: input.reason.slice(0, 160),
+        href: "/dashboard/expert/profile",
+        expertId: uid,
+      });
+    }
+
     return NextResponse.json({ ok: true, decision: input.decision });
   } catch (e) {
     return NextResponse.json(

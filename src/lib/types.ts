@@ -38,3 +38,44 @@ export interface ClaimCode{
 export interface Showcase{id:string;expertId:string;title:string;summary:string;outcome:string;integrations:string[];complexity:"Intermediate"|"Advanced"|"Expert";}
 export interface MarketplaceJob{id:string;clientId:string;clientName:string;title:string;description:string;skills:string[];integrations:string[];visibility:JobVisibility;status:JobStatus;budgetMin:number;budgetMax:number;currency:string;delivery:string;proposalCount:number;postedAt:string;verifiedPayment:boolean;}
 export interface SessionUser{uid:string;email:string;name?:string;role:UserRole;admin?:boolean;}
+
+export type NotificationType =
+  | "PROFILE_SUBMITTED"
+  | "SHOWCASE_SUBMITTED"
+  | "REVIEW_DECISION"
+  | "MESSAGE";
+
+export interface AppNotification {
+  id: string;
+  /** Set for a notification aimed at one person. Null for the admin queue. */
+  recipientUid: string | null;
+  audience: "ADMIN" | "USER";
+  type: NotificationType;
+  title: string;
+  body: string;
+  href: string;
+  expertId?: string | null;
+  /** Personal notifications use readAt; admin broadcasts track who has read. */
+  readAt?: string | null;
+  readBy?: string[];
+  createdAt: string;
+}
+
+export interface ExpertMessage {
+  id: string;
+  expertId: string;
+  authorUid: string;
+  authorRole: "admin" | "expert";
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ShowcaseAttachment {
+  id: string;
+  name: string;
+  storagePath: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}

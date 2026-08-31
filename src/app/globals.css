@@ -1364,3 +1364,151 @@ h1, h2, h3 {
   .link-row { grid-template-columns: 1fr auto; }
   .link-row input[type="url"] { grid-column: 1 / -1; }
 }
+
+/* ==========================================================================
+   Notifications, review thread and showcase attachments
+   ========================================================================== */
+
+/* ---------- bell + nav badge ---------- */
+
+.portal-top-right { display: flex; align-items: center; gap: 18px; }
+
+.bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  color: var(--ink-500);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.bell:hover { background: var(--warm-100); color: var(--ink); }
+.bell-count {
+  position: absolute;
+  top: 2px; right: 0;
+  min-width: 17px; height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--paper);
+}
+
+.nav-badge {
+  margin-left: auto;
+  min-width: 19px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+}
+.side-nav a .nav-badge + .side-chevron { display: none; }
+
+/* ---------- notification list ---------- */
+
+.notif-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.notif {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: start;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.notif.unread { border-color: var(--accent-line); background: var(--accent-soft); }
+.notif-icon {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  background: var(--warm-100);
+  color: var(--ink-500);
+  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 auto;
+}
+.notif.unread .notif-icon { background: #fff; color: var(--accent); }
+.notif strong { font-size: 14.3px; }
+.notif a:hover strong { color: var(--accent); }
+.notif p { margin: 4px 0 0; font-size: 13px; color: var(--ink-500); }
+.notif time { display: block; margin-top: 6px; font-size: 11.5px; color: var(--muted2); }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 6px; }
+
+/* ---------- review thread ---------- */
+
+.thread-panel { display: grid; gap: 4px; }
+.thread-empty { font-size: 13.5px; margin: 0 0 6px; }
+
+.thread { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 14px; }
+.thread-item { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+.thread-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--warm-100);
+  color: var(--ink-500);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  flex: 0 0 auto;
+}
+.thread-avatar.is-staff { background: var(--accent-soft); color: var(--accent); }
+.thread-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.thread-meta strong { font-size: 13.3px; }
+.thread-meta time { font-size: 11.5px; color: var(--muted2); }
+.thread-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.thread-item p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  color: var(--ink-700);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: var(--warm-50);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 13px;
+}
+.thread-item.mine p { background: var(--accent-soft); border-color: var(--accent-line); }
+
+.thread-composer { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 16px; }
+.thread-composer .button { justify-self: start; }
+
+/* ---------- showcase attachments ---------- */
+
+.attach-block { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); }
+.attach-list { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 6px; }
+.attach-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-700);
+}
+.attach-list li svg { color: var(--ink-400); flex: 0 0 auto; }
+.attach-list li a { font-weight: 600; word-break: break-all; }
+.attach-list li a:hover { color: var(--accent); }
+.attach-list li span { color: var(--muted2); font-size: 11.5px; white-space: nowrap; }
+.attach-list li button {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--ink-400);
+  padding: 2px;
+  display: inline-flex;
+}
+.attach-list li button:hover { color: var(--danger); }
+.attach-add { cursor: pointer; }
+.attach-hint { display: block; margin-top: 8px; font-size: 11.5px; color: var(--muted); }

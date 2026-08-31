@@ -6,9 +6,11 @@ import { StatusBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { AdminReviewActions } from "@/components/admin-review-actions";
+import { MessageThread } from "@/components/message-thread";
+import { threadFor } from "@/lib/expert-messages";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { MISSING_FIELD_LABELS } from "@/lib/expert-account";
-import type { ExpertDocument, ExpertProfile } from "@/lib/types";
+import type { ExpertDocument, ExpertProfile, Showcase, ShowcaseAttachment } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +35,14 @@ async function load(id: string) {
 
   const profile = { id: profileSnap.id, ...profileSnap.data() } as ExpertProfile;
 
-  const [privateSnap, verificationSnap, docsSnap] = await Promise.all([
+  const [privateSnap, verificationSnap, docsSnap, showcaseSnap, messages] = await Promise.all([
     db.collection("expertPrivate").doc(id).get(),
     db.collection("expertVerifications").doc(id).get(),
     profile.claimedByUid
       ? db.collection("expertDocuments").where("ownerUid", "==", profile.claimedByUid).get()
       : db.collection("expertDocuments").where("expertId", "==", id).get(),
+    db.collection("expertShowcases").where("expertId", "==", id).get(),
+    threadFor(id),
   ]);
 
   return {
@@ -46,16 +50,19 @@ async function load(id: string) {
     priv: (privateSnap.data() || {}) as PrivateRecord,
     verification: (verificationSnap.data() || {}) as Verification,
     documents: docsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as ExpertDocument),
+    showcases: showcaseSnap.docs.map((d) =>
+      ({ id: d.id, ...d.data() }) as Showcase & { reviewState?: string; attachments?: ShowcaseAttachment[] }),
+    messages,
   };
 }
 
 export default async function AdminExpertReview({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
 
-  const { profile, priv, verification, documents } = data;
+  const { profile, priv, verification, documents, showcases, messages } = data;
   const missing = (profile.missingFields || []).map((f) => MISSING_FIELD_LABELS[f] || f);
 
   return (
@@ -158,7 +165,7 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
                         </div>
                         <a
                           className="button button-secondary button-sm"
-                          href={`/api/admin/documents/${d.id}`}
+                          href={`/api/files?path=${encodeURIComponent(d.storagePath)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
@@ -179,6 +186,55 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
               </>
             )}
           </section>
+
+          <section className="panel card">
+            <div className="panel-head"><h2>Showcases</h2></div>
+            {showcases.length === 0 ? (
+              <EmptyState
+                icon={<FileText size={20} strokeWidth={1.9} />}
+                title="No showcases submitted"
+                body="A profile cannot be verified without at least one piece of workflow evidence."
+              />
+            ) : (
+              <div className="showcase-grid">
+                {showcases.map((s) => (
+                  <article className="showcase-card" key={s.id}>
+                    <StatusBadge tone={s.reviewState === "APPROVED" ? "success" : "warning"}>
+                      {s.reviewState || "PENDING"}
+                    </StatusBadge>
+                    <h3>{s.title}</h3>
+                    <p>{s.summary}</p>
+                    <span className="outcome">{s.outcome}</span>
+                    {(s.attachments || []).length > 0 && (
+                      <ul className="attach-list" style={{ marginTop: 12 }}>
+                        {(s.attachments || []).map((a) => (
+                          <li key={a.id}>
+                            <FileText size={14} strokeWidth={2} />
+                            <a
+                              href={`/api/files?path=${encodeURIComponent(a.storagePath)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {a.name}
+                            </a>
+                            <span>{(a.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <MessageThread
+            messages={messages}
+            viewerUid={session.uid}
+            mode="admin"
+            expertId={profile.id}
+            canRequestChanges
+          />
 
           {verification.state && (
             <section className="panel card">

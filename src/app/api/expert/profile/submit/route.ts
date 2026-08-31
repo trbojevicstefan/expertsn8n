@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { notifyAdmins } from "@/lib/notifications";
 
 const schema = z.object({
   headline: z.string().min(10).max(120),
@@ -116,6 +117,15 @@ export async function POST(req: Request) {
     batch.set(db.collection("users").doc(session.uid), { expertId: session.uid }, { merge: true });
 
     await batch.commit();
+
+    await notifyAdmins({
+      type: "PROFILE_SUBMITTED",
+      title: `${name} submitted a profile for review`,
+      body: input.headline,
+      href: `/admin/experts/${session.uid}`,
+      expertId: session.uid,
+    });
+
     return NextResponse.json({ ok: true, state: "SUBMITTED", slug });
   } catch (e) {
     return NextResponse.json(

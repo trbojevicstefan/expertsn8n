@@ -3,6 +3,8 @@ import { CheckCircle2, ExternalLink } from "lucide-react";
 import { getSession } from "@/lib/auth/server";
 import { ProfileEditor } from "@/components/profile-editor";
 import { completenessDetail, documentsForUid, expertProfileForUid } from "@/lib/expert-account";
+import { MessageThread } from "@/components/message-thread";
+import { threadFor } from "@/lib/expert-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +52,10 @@ export default async function ExpertProfilePage({
     );
   }
 
-  const documents = await documentsForUid(session.uid);
+  const [documents, messages] = await Promise.all([
+    documentsForUid(session.uid),
+    threadFor(profile.id),
+  ]);
   const { pct, gaps } = completenessDetail(profile);
 
   return (
@@ -98,6 +103,8 @@ export default async function ExpertProfilePage({
           <p className="completeness-missing">Everything on your public profile is filled in.</p>
         )}
       </div>
+
+      <MessageThread messages={messages} viewerUid={session.uid} mode="expert" />
 
       <ProfileEditor
         profile={profile}

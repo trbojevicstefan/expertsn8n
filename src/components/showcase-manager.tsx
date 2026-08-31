@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Workflow, X } from "lucide-react";
+import { FileText, Paperclip, Plus, Trash2, Workflow, X } from "lucide-react";
+import { ref, uploadBytes } from "firebase/storage";
+import { firebaseStorage } from "@/lib/firebase/client";
 import { StatusBadge } from "./status-badge";
 import { EmptyState } from "./empty-state";
-import type { Showcase } from "@/lib/types";
+import type { Showcase, ShowcaseAttachment } from "@/lib/types";
 
-type Item = Showcase & { reviewState?: string };
+type Item = Showcase & { reviewState?: string; attachments?: ShowcaseAttachment[] };
 
 const EMPTY = {
   title: "",
@@ -17,7 +19,9 @@ const EMPTY = {
   complexity: "Advanced" as Showcase["complexity"],
 };
 
-export function ShowcaseManager({ initial }: { initial: Item[] }) {
+const safeName = (n: string) => n.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
+
+export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string }) {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>(initial);
   const [open, setOpen] = useState(false);
@@ -54,6 +58,53 @@ export function ShowcaseManager({ initial }: { initial: Item[] }) {
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the showcase.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const attach = async (showcaseId: string, file: File) => {
+    if (!firebaseStorage) return setError("Storage is not configured.");
+    setError("");
+    setBusy(`att-${showcaseId}`);
+    try {
+      const path = `private/experts/${uid}/showcases/${showcaseId}/${Date.now()}-${safeName(file.name)}`;
+      await uploadBytes(ref(firebaseStorage, path), file, { contentType: file.type || "application/octet-stream" });
+      const res = await fetch(`/api/expert/showcases/${showcaseId}/attachments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: file.name,
+          storagePath: path,
+          contentType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not attach that file.");
+      setItems((prev) => prev.map((s) =>
+        s.id === showcaseId ? { ...s, attachments: [...(s.attachments || []), data.attachment] } : s));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const detach = async (showcaseId: string, attachmentId: string) => {
+    setBusy(`att-${attachmentId}`);
+    try {
+      const res = await fetch(
+        `/api/expert/showcases/${showcaseId}/attachments?attachmentId=${encodeURIComponent(attachmentId)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error((await res.json()).error || "Could not remove that file.");
+      setItems((prev) => prev.map((s) =>
+        s.id === showcaseId
+          ? { ...s, attachments: (s.attachments || []).filter((a) => a.id !== attachmentId) }
+          : s));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove that file.");
     } finally {
       setBusy("");
     }
@@ -181,6 +232,40 @@ export function ShowcaseManager({ initial }: { initial: Item[] }) {
                   {s.integrations.map((x) => <span className="chip" key={x}>{x}</span>)}
                 </div>
               )}
+
+              <div className="attach-block">
+                {(s.attachments || []).length > 0 && (
+                  <ul className="attach-list">
+                    {(s.attachments || []).map((a) => (
+                      <li key={a.id}>
+                        <FileText size={14} strokeWidth={2} />
+                        <a href={`/api/files?path=${encodeURIComponent(a.storagePath)}`} target="_blank" rel="noopener noreferrer">
+                          {a.name}
+                        </a>
+                        <span>{(a.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
+                        <button
+                          type="button"
+                          onClick={() => detach(s.id, a.id)}
+                          disabled={busy === `att-${a.id}`}
+                          aria-label={`Remove ${a.name}`}
+                        >
+                          <Trash2 size={12} strokeWidth={2.2} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <label className="button button-secondary button-sm attach-add">
+                  <Paperclip size={14} strokeWidth={2.2} />
+                  {busy === `att-${s.id}` ? "Uploading…" : "Attach a file"}
+                  <input
+                    type="file"
+                    hidden
+                    onChange={(e) => e.target.files?.[0] && attach(s.id, e.target.files[0])}
+                  />
+                </label>
+                <span className="attach-hint">PDF, images, documents — up to 25 MB. Visible to you and reviewers only.</span>
+              </div>
             </article>
           ))}
         </div>

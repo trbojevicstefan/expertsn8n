@@ -16,5 +16,5 @@ async function showcasesForUid(uid: string): Promise<(Showcase & { reviewState?:
 export default async function Showcases() {
   const session = await requireSession();
   const items = await showcasesForUid(session.uid);
-  return <ShowcaseManager initial={items} />;
+  return <ShowcaseManager initial={items} uid={session.uid} />;
 }
