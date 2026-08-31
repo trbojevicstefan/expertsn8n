@@ -36,12 +36,12 @@ n8nexperts.io is a two-sided marketplace where clients can discover vetted n8n e
 
 ## P0 - Marketplace correctness and safety
 
-- [ ] Make proposal acceptance atomic/idempotent so concurrent accepts cannot create duplicate contracts or accept multiple proposals for one already-filled job.
-- [ ] Ensure accepting one proposal prevents other proposals on the same job from being accepted afterwards.
-- [ ] Delete the corresponding private Storage object when an expert deletes a document record.
-- [ ] Verify uploaded document metadata against the actual Storage object before persisting it to Firestore.
-- [ ] Add baseline HTTP security headers (frame protection, MIME sniffing protection, referrer policy, permissions policy and CSP baseline).
-- [ ] Make CI deterministic with `npm ci` and keep typecheck + lint + production build as merge gates.
+- [x] Make proposal acceptance atomic/idempotent so concurrent accepts cannot create duplicate contracts or accept multiple proposals for one already-filled job.
+- [x] Ensure accepting one proposal prevents other proposals on the same job from being accepted afterwards.
+- [x] Delete the corresponding private Storage object when an expert deletes a document record.
+- [x] Verify uploaded document metadata against the actual Storage object before persisting it to Firestore.
+- [x] Add baseline HTTP security headers (frame protection, MIME sniffing protection, referrer policy, permissions policy and CSP baseline).
+- [x] Make CI deterministic with `npm ci` and keep typecheck + lint + production build as merge gates.
 - [ ] Add automated tests for auth/authorization boundaries, proposal acceptance and milestone state transitions.
 - [ ] Add request rate limiting for auth/session, claim verification, proposal creation, messaging and support endpoints.
 
@@ -109,7 +109,7 @@ The current payment abstraction is useful for development but **the mock provide
 ## P1 - Security hardening
 
 - [ ] Add CSRF/origin protection to state-changing cookie-authenticated routes.
-- [ ] Validate all Storage paths against exact expected prefixes and actual object metadata.
+- [x] Validate all Storage paths against exact expected prefixes and actual object metadata.
 - [ ] Add malware/content scanning strategy for uploaded documents before reviewer access.
 - [ ] Add maximum request body sizes for JSON and upload metadata endpoints.
 - [ ] Review every Admin SDK query for explicit ownership/role checks because Admin SDK bypasses Firebase rules.
@@ -177,12 +177,12 @@ A task can be checked only when all applicable conditions are true:
 
 Working branch: `build/marketplace-hardening`
 
-- [ ] Atomic/idempotent proposal acceptance
-- [ ] Storage cleanup + object verification for expert documents
-- [ ] Baseline HTTP security headers
-- [ ] Deterministic CI (`npm ci`)
-- [ ] Re-run CI and mark completed items above
+- [x] Atomic/idempotent proposal acceptance
+- [x] Storage cleanup + object verification for expert documents
+- [x] Baseline HTTP security headers
+- [x] Deterministic CI (`npm ci`)
+- [x] Re-run CI and mark completed items above
 
 ### Validation note
 
-The first hardening run exposed a pre-existing toolchain incompatibility: TypeScript 7.0.2 cannot currently be loaded by the `typescript-eslint` version used by Next 16.3.3, and ESLint 10 is outside the peer range of several bundled plugins. The branch pins the lint toolchain to the supported TypeScript 6 compatibility package and ESLint 9 while preserving Node 22 and Next 16.3.3. The lockfile is being regenerated and must be committed before the CI checkbox can be marked complete.
+The first hardening run exposed a pre-existing toolchain incompatibility: TypeScript 7.0.2 could not be loaded by the `typescript-eslint` version used by Next 16.3.3, and ESLint 10 was outside the peer range of bundled plugins. The branch now pins `typescript` to Microsoft's TypeScript 6 compatibility package (`@typescript/typescript6@6.0.3`) and ESLint 9.39.5, with a regenerated committed lockfile. Final read-only CI validation passed `npm ci`, typecheck, lint, and the production Next.js build before these tasks were checked.
