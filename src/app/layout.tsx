@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "n8nexperts — The n8n talent marketplace",
     description:
-      "Reviewed n8n developers, real workflow case studies and funded milestones. One in nine applicants is published.",
+      "A directory of n8n specialists. Every profile states whether it has been through review, and work is paid through funded milestones.",
     type: "website",
     siteName: "n8nexperts",
     url: appUrl,
