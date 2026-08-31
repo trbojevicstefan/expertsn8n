@@ -18,6 +18,23 @@ export interface PaymentTransition {
   milestoneStatus: "FUNDED" | "RELEASED" | "REFUNDED";
 }
 
+/** Backwards-compatible mapping for contracts created before paymentStatus was
+ * persisted explicitly. New writes should always set paymentStatus. */
+export function effectivePaymentStatus(milestone: {
+  status: string;
+  paymentStatus?: PaymentStatus;
+}): PaymentStatus {
+  if (milestone.paymentStatus) return milestone.paymentStatus;
+  if (milestone.status === "RELEASED") return "RELEASED";
+  if (milestone.status === "REFUNDED") return "REFUNDED";
+  if (milestone.status === "RELEASE_PENDING") return "RELEASE_PENDING";
+  if (milestone.status === "REFUND_PENDING") return "REFUND_PENDING";
+  if (["FUNDED", "IN_PROGRESS", "SUBMITTED", "CHANGES_REQUESTED", "DISPUTED"].includes(milestone.status)) {
+    return "FUNDED";
+  }
+  return "UNFUNDED";
+}
+
 /**
  * Money state changes only when the provider confirms them. Starting a checkout
  * or requesting a transfer is not confirmation that money moved.
