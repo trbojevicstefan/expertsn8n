@@ -35,11 +35,15 @@ export function ProfileEditor({
   uid,
   documents: initialDocuments,
   photoRequired,
+  submissionGaps,
 }: {
   profile: ExpertProfile;
   uid: string;
   documents: ExpertDocument[];
   photoRequired: boolean;
+  /** Server-computed, so it refreshes on save rather than drifting from the
+   *  gate the API applies. */
+  submissionGaps: string[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -194,10 +198,18 @@ export function ProfileEditor({
     }
   };
 
-  const canSubmit = profile.status === "DRAFT" || profile.status === "NEEDS_CHANGES";
+  const submittable = profile.status === "DRAFT" || profile.status === "NEEDS_CHANGES";
+  const blocked = submissionGaps.length > 0;
 
   return (
     <form className="form-card card" onSubmit={save}>
+      {submittable && blocked && (
+        <div className="notice notice-warning">
+          <strong>Not ready for review yet — {submissionGaps.length} thing{submissionGaps.length === 1 ? "" : "s"} still missing.</strong>
+          {submissionGaps.join(", ")}. Fill these in and save, and the review button opens up.
+        </div>
+      )}
+
       {photoRequired && !photoUrl && (
         <div className="notice notice-warning">
           <strong>We still need a profile photo.</strong>
@@ -468,12 +480,13 @@ export function ProfileEditor({
           {busy === "save" ? "Saving…" : "Save changes"}
         </button>
 
-        {canSubmit && (
+        {submittable && (
           <button
             type="button"
             className="button button-accent"
-            disabled={busy === "submit"}
+            disabled={busy === "submit" || blocked}
             onClick={submitForReview}
+            title={blocked ? `Still missing: ${submissionGaps.join(", ")}` : undefined}
           >
             <Send size={15} strokeWidth={2.2} />
             {busy === "submit" ? "Sending…" : "Submit for review"}

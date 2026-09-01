@@ -6,18 +6,6 @@ import { notifyAdmins } from "@/lib/notifications";
 import type { ExpertProfile } from "@/lib/types";
 import { syncMarketplaceUser } from "@/lib/customerio";
 
-/** The subset a reviewer needs in order to have anything to judge. */
-function blockingGaps(profile: ExpertProfile): string[] {
-  const required: [string, boolean][] = [
-    ["your name", Boolean(profile.name && profile.name.trim().length > 1)],
-    ["a headline", Boolean(profile.title)],
-    ["a bio of at least a short paragraph", Boolean(profile.bio && profile.bio.length > 80)],
-    ["your location", Boolean(profile.location)],
-    ["at least one skill", Boolean(profile.skills?.length)],
-  ];
-  return required.filter(([, ok]) => !ok).map(([label]) => label);
-}
-
 export async function POST() {
   const session = await getSession();
   if (!session || session.role !== "expert") {
@@ -49,10 +37,14 @@ export async function POST() {
     return NextResponse.json({ error: "This profile is already verified." }, { status: 409 });
   }
 
-  const gaps = blockingGaps(profile);
+  // The same list the expert's own completeness card shows, so the button
+  // never refuses something the page did not already ask for. A CV and a
+  // showcase are chased separately: gating on them would block every expert in
+  // the marketplace, not just the unfinished ones.
+  const { pct, gaps } = completenessDetail(profile);
   if (gaps.length > 0) {
     return NextResponse.json(
-      { error: `Before review we need ${gaps.join(", ")}.`, gaps },
+      { error: `Your profile is not ready for review yet. Still missing: ${gaps.join(", ")}.`, gaps },
       { status: 400 },
     );
   }
@@ -73,6 +65,5 @@ export async function POST() {
   });
   await syncMarketplaceUser(session.uid, "expert_profile_submitted");
 
-  const { pct } = completenessDetail(profile);
   return NextResponse.json({ ok: true, state: "SUBMITTED", completeness: pct });
 }

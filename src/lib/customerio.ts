@@ -1,5 +1,5 @@
 import { clientProfileGaps } from "@/lib/client-account";
-import { completenessDetail } from "@/lib/expert-account";
+import { completenessDetail, expertProfileGaps } from "@/lib/expert-account";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import type { ClientProfile, ExpertProfile } from "@/lib/types";
 
@@ -283,11 +283,7 @@ export async function syncMarketplaceUser(
     const approvedShowcases = showcases.filter((item) => item.reviewState === "APPROVED").length;
     const pendingShowcases = showcases.filter((item) => item.reviewState === "PENDING").length;
     const hasCv = documents.some((item) => item.kind === "cv");
-    const missing = [
-      ...detail.gaps,
-      ...(!hasCv ? ["CV"] : []),
-      ...(showcases.length === 0 ? ["Showcase"] : []),
-    ];
+    const missing = expertProfileGaps(profile, { hasCv, showcaseCount: showcases.length });
 
     Object.assign(attributes, {
       expert_id: expertId,

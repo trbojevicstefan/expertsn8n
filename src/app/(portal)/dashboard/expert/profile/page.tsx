@@ -126,6 +126,7 @@ export default async function ExpertProfilePage({
         uid={session.uid}
         documents={documents}
         photoRequired={(profile.missingFields || []).includes("photo")}
+        submissionGaps={gaps}
       />
     </>
   );

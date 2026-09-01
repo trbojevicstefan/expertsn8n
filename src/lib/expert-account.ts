@@ -45,6 +45,7 @@ export function completenessDetail(profile: ExpertProfile): {
 } {
   const core: [string, boolean][] = [
     ["Your name", Boolean(profile.name && profile.name.trim().length > 1)],
+    ["A headline", Boolean(profile.title)],
     ["Profile photo", Boolean(profile.photoUrl)],
     ["A bio of at least a short paragraph", Boolean(profile.bio && profile.bio.length > 80)],
     ["Location", Boolean(profile.location)],
@@ -69,6 +70,29 @@ export function completenessDetail(profile: ExpertProfile): {
     gaps: core.filter(([, ok]) => !ok).map(([label]) => label),
     extras,
   };
+}
+
+/**
+ * Everything that has to be true before a profile is worth a reviewer's time,
+ * named once.
+ *
+ * Customer.io mirrors this list into `expert_missing_properties` and its
+ * campaigns read it back verbatim, the sign-up page promises "photo + CV +
+ * portfolio", and the submit button enforces it. All three now come from here,
+ * so an expert is never chased for something the gate does not ask for -- or
+ * let through without something it does.
+ */
+export function expertProfileGaps(
+  profile: ExpertProfile,
+  evidence: { hasCv: boolean; showcaseCount: number },
+): string[] {
+  return [
+    ...completenessDetail(profile).gaps,
+    ...(!evidence.hasCv ? ["CV"] : []),
+    // A showcase awaiting review still counts: requiring an approved one would
+    // be circular, since showcases are reviewed alongside the profile.
+    ...(evidence.showcaseCount === 0 ? ["Showcase"] : []),
+  ];
 }
 
 /** Percentage of the required public-facing fields that are filled in. */
