@@ -162,8 +162,8 @@ export async function syncMarketplaceUser(
   const user = userSnap.data() || {};
   const role = user.role === "expert" ? "expert" : user.role === "admin" ? "admin" : "client";
   const authUser = await adminAuth().getUser(uid).catch(() => null);
+  const email = text(user.email, 320).trim();
   const attributes: CustomerIoAttributes = {
-    email: text(user.email, 320),
     name: text(user.name, 160),
     role,
     account_status: text(user.status, 80) || "ACTIVE",
@@ -175,6 +175,10 @@ export async function syncMarketplaceUser(
     sync_schema_version: 1,
     sync_last_attempt_at: new Date().toISOString(),
   };
+  // Customer.io rejects an empty/invalid email attribute. Legacy imported
+  // profiles can still sync by their stable Firebase UID until they claim the
+  // profile and add a real address.
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) attributes.email = email;
 
   if (role === "expert") {
     const expertId = text(user.expertId, 200) || uid;
