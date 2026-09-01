@@ -163,6 +163,23 @@ export async function sendCustomerIoEmailVerification(
   });
 }
 
+/** Same split as verification: Firebase owns the reset token, Customer.io the design. */
+export async function sendCustomerIoPasswordReset(
+  uid: string,
+  email: string,
+  resetUrl: string,
+): Promise<void> {
+  const messageId = process.env.CUSTOMERIO_PASSWORD_RESET_MESSAGE_ID;
+  if (!messageId) throw new Error("CUSTOMERIO_PASSWORD_RESET_MESSAGE_ID is not configured");
+
+  await sendAppApiEmail({
+    transactional_message_id: messageId,
+    to: email,
+    identifiers: { id: uid },
+    message_data: { reset_url: resetUrl },
+  });
+}
+
 /** Attempt immediately; persist the exact notification for retry if delivery is unavailable. */
 export async function deliverTransactionalNotification(
   uid: string,

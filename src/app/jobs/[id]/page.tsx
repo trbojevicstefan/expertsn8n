@@ -7,6 +7,7 @@ import { findJob } from "@/lib/data";
 import { getSession } from "@/lib/auth/server";
 import { ProposalForm } from "@/components/proposal-form";
 import { postedLabel } from "@/lib/format";
+import { StructuredData, jobSchema } from "@/components/structured-data";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const job = await findJob(id);
   if (!job) return { title: "Job not found" };
-  return { title: job.title, description: job.description.slice(0, 200) };
+  const description = job.description.slice(0, 200);
+  return {
+    title: job.title,
+    description,
+    alternates: { canonical: `/jobs/${id}` },
+    openGraph: { title: job.title, description, type: "article", url: `/jobs/${id}` },
+  };
 }
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,6 +35,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
   return (
     <>
+      {/* Private jobs are session-gated, so only public ones ever reach a crawler. */}
+      {job.visibility === "PUBLIC" && <StructuredData data={jobSchema(job)} />}
       <SiteHeader />
       <main>
         <div className="container job-detail-grid">

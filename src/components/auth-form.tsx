@@ -9,7 +9,8 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { BriefcaseBusiness, UserRoundSearch } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { firebaseAuth, firebaseClientConfigured } from "@/lib/firebase/client";
 import { requestVerificationEmail } from "@/lib/auth/client-verification";
 import type { UserRole } from "@/lib/types";
@@ -28,8 +29,15 @@ async function establishSession(role?: UserRole) {
   return response.json() as Promise<{ emailVerified: boolean; role: UserRole }>;
 }
 
+const NOTICES: Record<string, string> = {
+  reset: "Password updated. Log in with your new password.",
+  verified: "Email verified. Log in to continue.",
+};
+
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
+  const params = useSearchParams();
+  const notice = NOTICES[params.get("reset") === "1" ? "reset" : params.get("verified") === "1" ? "verified" : ""];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -152,10 +160,18 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         <label>Password</label>
         <input className="input" type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
       </div>
+      {notice && <div className="info-box">{notice}</div>}
       {error && <div className="error-box">{error}</div>}
       <button disabled={loading} className="button button-primary button-wide" type="submit">
         {loading ? "Working..." : mode === "sign-up" ? "Create account" : "Log in"}
       </button>
+      {mode === "sign-in" && (
+        <p style={{ marginTop: 12, fontSize: 12, textAlign: "center" }}>
+          <Link href="/forgot-password" style={{ color: "#2563eb", fontWeight: 700 }}>
+            Forgot your password?
+          </Link>
+        </p>
+      )}
       <div className="separator">or</div>
       <button disabled={loading} className="button button-secondary button-wide" type="button" onClick={google}>
         Continue with Google

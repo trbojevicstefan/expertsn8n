@@ -8,6 +8,7 @@ import { Avatar } from "@/components/avatar";
 import { findExpertBySlug, listShowcasesForExpert, listJobsForClient } from "@/lib/data";
 import { getSession } from "@/lib/auth/server";
 import { InviteExpert } from "@/components/invite-expert";
+import { StructuredData, expertSchema } from "@/components/structured-data";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const expert = await findExpertBySlug(slug);
   if (!expert) return { title: "Expert not found" };
+  const description = expert.bio.slice(0, 200);
   return {
     title: `${expert.name} — ${expert.title}`,
-    description: expert.bio.slice(0, 200),
+    description,
+    alternates: { canonical: `/experts/${slug}` },
+    openGraph: {
+      title: `${expert.name} — ${expert.title}`,
+      description,
+      type: "profile",
+      url: `/experts/${slug}`,
+      images: expert.photoUrl ? [expert.photoUrl] : undefined,
+    },
   };
 }
 
@@ -39,6 +49,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
 
   return (
     <>
+      <StructuredData data={expertSchema(expert)} />
       <SiteHeader />
       <main>
         <div className="container profile-grid">

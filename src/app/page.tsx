@@ -12,6 +12,7 @@ import {
 } from "@/components/marketing";
 import { listPublishedExperts, marketplaceStats } from "@/lib/data";
 import { faqs } from "@/lib/site-content";
+import { StructuredData } from "@/components/structured-data";
 
 // The featured strip reads live profiles, so the page cannot be frozen at build
 // time (where Firebase Admin credentials do not exist and demo data would be
@@ -55,10 +56,7 @@ export default async function Home() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      <StructuredData data={structuredData} />
       <AnnounceBar />
       <SiteHeader />
       <main>

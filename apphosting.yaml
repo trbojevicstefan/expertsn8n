@@ -73,6 +73,9 @@ env:
   - variable: CUSTOMERIO_VERIFICATION_MESSAGE_ID
     value: email_verification
     availability: [ RUNTIME ]
+  - variable: CUSTOMERIO_PASSWORD_RESET_MESSAGE_ID
+    value: password_reset
+    availability: [ RUNTIME ]
   - variable: CUSTOMERIO_CRON_SECRET
     secret: CUSTOMERIO_CRON_SECRET
     availability: [ RUNTIME ]
