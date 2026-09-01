@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
-  sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
   updateProfile,
@@ -12,6 +11,7 @@ import {
 import { BriefcaseBusiness, UserRoundSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { firebaseAuth, firebaseClientConfigured } from "@/lib/firebase/client";
+import { requestVerificationEmail } from "@/lib/auth/client-verification";
 import type { UserRole } from "@/lib/types";
 
 async function establishSession(role?: UserRole) {
@@ -54,9 +54,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         // Create the marketplace record (and Customer.io profile) before the
         // user leaves this page, then require mailbox verification for access.
         await establishSession(role);
-        await sendEmailVerification(credential.user, {
-          url: `${window.location.origin}/verify-email`,
-        });
+        await requestVerificationEmail();
         router.push("/verify-email");
         return;
       }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { sendEmailVerification } from "firebase/auth";
+import { applyActionCode } from "firebase/auth";
 import { ArrowRight, LoaderCircle, MailCheck, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { requestVerificationEmail } from "@/lib/auth/client-verification";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { useRouter } from "next/navigation";
 
@@ -28,6 +29,29 @@ export function VerifyEmailCard() {
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
+    const oobCode = new URLSearchParams(window.location.search).get("oobCode");
+    if (oobCode && firebaseAuth) {
+      const auth = firebaseAuth;
+      const verifyFromLink = async () => {
+        await Promise.resolve();
+        setWorking(true);
+        setMessage("Verifying your email securely...");
+        try {
+          await applyActionCode(auth, oobCode);
+          if (await refreshSession()) {
+            router.replace("/dashboard");
+            return;
+          }
+          setMessage("Email verified. Redirecting you to sign in...");
+          window.setTimeout(() => router.replace("/sign-in?verified=1"), 900);
+        } catch {
+          setMessage("This verification link is invalid or expired. Request a fresh email below.");
+          setWorking(false);
+        }
+      };
+      void verifyFromLink();
+    }
+
     const timer = window.setInterval(async () => {
       if (await refreshSession()) router.push("/dashboard");
     }, 5000);
@@ -55,8 +79,8 @@ export function VerifyEmailCard() {
     }
     setWorking(true);
     try {
-      await sendEmailVerification(user, { url: `${window.location.origin}/verify-email` });
-      setMessage("A fresh verification email has been sent. Check spam if it does not arrive soon.");
+      await requestVerificationEmail();
+      setMessage("A fresh n8nexperts verification email has been sent. Check your inbox.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not resend the verification email.");
     } finally {

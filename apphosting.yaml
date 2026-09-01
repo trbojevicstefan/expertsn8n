@@ -70,6 +70,9 @@ env:
   - variable: CUSTOMERIO_TRANSACTIONAL_MESSAGE_ID
     value: platform_message_notification
     availability: [ RUNTIME ]
+  - variable: CUSTOMERIO_VERIFICATION_MESSAGE_ID
+    value: email_verification
+    availability: [ RUNTIME ]
   - variable: CUSTOMERIO_CRON_SECRET
     secret: CUSTOMERIO_CRON_SECRET
     availability: [ RUNTIME ]

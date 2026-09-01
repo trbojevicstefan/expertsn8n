@@ -104,6 +104,34 @@ async function sendTransactionalNotification(
   if (!response.ok) throw new Error(`Customer.io App API returned ${response.status}`);
 }
 
+/** Send a branded verification message while Firebase remains the token authority. */
+export async function sendCustomerIoEmailVerification(
+  uid: string,
+  verificationUrl: string,
+): Promise<void> {
+  const apiKey = process.env.CUSTOMERIO_APP_API_KEY;
+  const messageId = process.env.CUSTOMERIO_VERIFICATION_MESSAGE_ID;
+  if (!apiKey || !messageId) throw new Error("Customer.io email verification is not configured");
+
+  const region = process.env.CUSTOMERIO_REGION?.toLowerCase() === "eu" ? "eu" : "us";
+  const apiBase = region === "eu" ? "https://api-eu.customer.io" : "https://api.customer.io";
+  const response = await fetch(`${apiBase}/v1/send/email`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      transactional_message_id: messageId,
+      identifiers: { id: uid },
+      message_data: { verification_url: verificationUrl },
+    }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) throw new Error(`Customer.io App API returned ${response.status}`);
+}
+
 /** Attempt immediately; persist the exact notification for retry if delivery is unavailable. */
 export async function deliverTransactionalNotification(
   uid: string,
