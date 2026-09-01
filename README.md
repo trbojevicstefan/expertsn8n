@@ -122,6 +122,7 @@ The `/legal/*` routes are **placeholders**, not final legal terms. Replace them 
 - [ ] Add invitation/proposal/offer screens backed by Firestore rather than demo records.
 - [ ] Add scheduled payment reconciliation and milestone review-deadline workers.
 - [ ] Add transactional email (Resend or equivalent) and in-app notification worker.
+- [x] Add Customer.io profile identification and account/login event tracking.
 - [ ] Add Firebase Emulator security-rule tests to CI.
 - [ ] Add Better Stack ingest if desired for application logs; keep Firebase/Cloud Logging for infrastructure logs.
 - [ ] Add App Check enforcement after staging validation.
@@ -146,3 +147,16 @@ Contract milestones are stored as `contracts/{contractId}/milestones/{milestoneI
 ---
 
 This is an independent marketplace implementation. n8n is a trademark of its respective owner; no affiliation or endorsement is implied.
+
+## Customer.io integration
+
+The server identifies each signed-in user in Customer.io using the Firebase UID and tracks
+`account_created` and `logged_in` events. Customer.io failures do not block authentication.
+
+Create a dedicated Track API key in Customer.io, then create the App Hosting secrets
+`CUSTOMERIO_SITE_ID` and `CUSTOMERIO_TRACK_API_KEY`. Set `CUSTOMERIO_REGION` to `eu` if the
+Customer.io workspace is hosted in the EU; it defaults to `us`.
+
+The official Customer.io MCP server is separate from the application runtime. It connects an
+AI client to Customer.io over OAuth at `https://mcp.customer.io/mcp` (US) or
+`https://mcp-eu.customer.io/mcp` (EU); the application itself uses the Track API integration above.

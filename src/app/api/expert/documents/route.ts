@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const KINDS = ["cv", "portfolio", "certificate", "id", "other"] as const;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -110,6 +111,7 @@ export async function POST(req: Request) {
       { merge: true },
     );
   }
+  await syncMarketplaceUser(session.uid, "expert_document_uploaded");
 
   return NextResponse.json({ id: ref.id, ok: true }, { status: 201 });
 }
@@ -165,6 +167,7 @@ export async function DELETE(req: Request) {
       );
     }
   }
+  await syncMarketplaceUser(session.uid, "expert_document_removed");
 
   return NextResponse.json({ ok: true });
 }

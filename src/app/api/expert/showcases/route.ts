@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { notifyAdmins } from "@/lib/notifications";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
   title: z.string().min(5).max(120),
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
     href: `/admin/experts/${expertId}`,
     expertId,
   });
+  await syncMarketplaceUser(session.uid, "expert_showcase_submitted");
 
   return NextResponse.json({ id: ref.id, ok: true }, { status: 201 });
 }
@@ -113,5 +115,6 @@ export async function DELETE(req: Request) {
   );
 
   await ref.delete();
+  await syncMarketplaceUser(session.uid, "expert_showcase_removed");
   return NextResponse.json({ ok: true, removedFiles: attachments.length });
 }

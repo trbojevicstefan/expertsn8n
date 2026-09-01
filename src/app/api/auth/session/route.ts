@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { cookieName } from "@/lib/auth/server";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
   idToken: z.string().min(20),
@@ -121,6 +122,8 @@ export async function POST(request: Request) {
     if (effectiveRole === "expert") {
       await ensureExpertProfile(decoded.uid, decoded.name || "", decoded.email || "");
     }
+
+    await syncMarketplaceUser(decoded.uid, existing.exists ? "logged_in" : "account_created");
 
     const res = NextResponse.json({ ok: true, role: effectiveRole });
     res.cookies.set(cookieName, sessionCookie, {

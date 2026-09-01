@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import { ownerUidFor } from "@/lib/expert-messages";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
   ids: z.array(z.string().min(1).max(200)).min(1).max(100),
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
         href: "/dashboard/expert/showcases",
         expertId,
       });
+      await syncMarketplaceUser(ownerUid, `expert_showcases_${input.reviewState.toLowerCase()}`);
     }),
   );
 

@@ -4,6 +4,7 @@ import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { completenessDetail } from "@/lib/expert-account";
 import { notifyAdmins } from "@/lib/notifications";
 import type { ExpertProfile } from "@/lib/types";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 /** The subset a reviewer needs in order to have anything to judge. */
 function blockingGaps(profile: ExpertProfile): string[] {
@@ -70,6 +71,7 @@ export async function POST() {
     href: `/admin/experts/${expertId}`,
     expertId,
   });
+  await syncMarketplaceUser(session.uid, "expert_profile_submitted");
 
   const { pct } = completenessDetail(profile);
   return NextResponse.json({ ok: true, state: "SUBMITTED", completeness: pct });

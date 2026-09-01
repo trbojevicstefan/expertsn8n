@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
   storagePath: z.string().min(1).max(500),
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
     },
     { merge: true },
   );
+  await syncMarketplaceUser(session.uid, "expert_photo_uploaded");
 
   return NextResponse.json({ ok: true, photoUrl });
 }

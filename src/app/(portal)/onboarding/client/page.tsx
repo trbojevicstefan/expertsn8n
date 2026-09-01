@@ -1,1 +1,15 @@
-import Link from "next/link";export default function ClientOnboarding(){return <><div className="portal-head"><div><h1>Set up your client profile</h1><p>Add enough context for experts to evaluate your projects.</p></div></div><form className="form-card card"><div className="form-section"><h2>Company</h2><div className="field"><label>Company name</label><input className="input" required/></div><div className="form-row"><div className="field"><label>Company website</label><input className="input" placeholder="https://"/></div><div className="field"><label>Billing country</label><input className="input" required/></div></div></div><div className="form-section"><h2>What do you automate?</h2><textarea className="textarea" placeholder="Tell experts what your team does and where automation creates leverage."/></div><Link className="button button-primary" href="/dashboard/client/jobs/new">Save and post a job</Link></form></>}
+import { ClientOnboardingForm } from "@/components/client-onboarding-form";
+
+export default function ClientOnboarding() {
+  return (
+    <>
+      <div className="portal-head">
+        <div>
+          <h1>Set up your client profile</h1>
+          <p>Add enough context for experts to evaluate your projects.</p>
+        </div>
+      </div>
+      <ClientOnboardingForm />
+    </>
+  );
+}

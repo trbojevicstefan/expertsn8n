@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import { ownerUidFor, postMessage } from "@/lib/expert-messages";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
   decision: z.enum(["VERIFIED", "NEEDS_CHANGES", "REJECTED", "SUSPENDED", "PUBLISHED"]),
@@ -101,6 +102,7 @@ ${input.reason}`,
         expertId: uid,
       });
     }
+    if (ownerUid) await syncMarketplaceUser(ownerUid, `expert_${input.decision.toLowerCase()}`);
 
     return NextResponse.json({ ok: true, decision: input.decision });
   } catch (e) {

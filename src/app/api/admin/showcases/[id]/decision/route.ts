@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import { ownerUidFor } from "@/lib/expert-messages";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
   reviewState: z.enum(["APPROVED", "REJECTED", "PENDING"]),
@@ -75,6 +76,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       href: "/dashboard/expert/showcases",
       expertId,
     });
+    await syncMarketplaceUser(ownerUid, `expert_showcase_${input.reviewState.toLowerCase()}`);
   }
 
   return NextResponse.json({ ok: true, reviewState: input.reviewState });

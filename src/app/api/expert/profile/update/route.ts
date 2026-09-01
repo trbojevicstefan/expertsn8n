@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 export const N8N_EXPERIENCE_OPTIONS = [
   "n8n Cloud",
@@ -100,6 +101,7 @@ export async function POST(req: Request) {
   // The account's display name follows the profile so the portal header and any
   // future notification address them the same way.
   await db.collection("users").doc(session.uid).set({ name: input.name }, { merge: true });
+  await syncMarketplaceUser(session.uid, "expert_profile_updated");
 
   return NextResponse.json({ ok: true, missingFields: stillMissing });
 }

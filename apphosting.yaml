@@ -47,6 +47,17 @@ env:
     value: "5"
     availability: [RUNTIME]
 
+  # Customer.io Track API credentials are stored in Google Secret Manager.
+  - variable: CUSTOMERIO_SITE_ID
+    secret: CUSTOMERIO_SITE_ID
+    availability: [RUNTIME]
+  - variable: CUSTOMERIO_TRACK_API_KEY
+    secret: CUSTOMERIO_TRACK_API_KEY
+    availability: [RUNTIME]
+  - variable: CUSTOMERIO_REGION
+    value: us
+    availability: [RUNTIME]
+
   - variable: PAYMENT_PROVIDER
     value: mock
     availability: [RUNTIME]
