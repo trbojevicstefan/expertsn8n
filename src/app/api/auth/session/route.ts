@@ -125,7 +125,11 @@ export async function POST(request: Request) {
 
     await syncMarketplaceUser(decoded.uid, existing.exists ? "logged_in" : "account_created");
 
-    const res = NextResponse.json({ ok: true, role: effectiveRole });
+    const res = NextResponse.json({
+      ok: true,
+      role: effectiveRole,
+      emailVerified: decoded.email_verified !== false,
+    });
     res.cookies.set(cookieName, sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

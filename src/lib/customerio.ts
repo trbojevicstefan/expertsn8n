@@ -1,10 +1,25 @@
 import { completenessDetail } from "@/lib/expert-account";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import type { ExpertProfile } from "@/lib/types";
 
 type CustomerIoAttributes = Record<string, boolean | number | string | null>;
 
 type CustomerIoEventData = Record<string, boolean | number | string | null>;
+
+export interface TransactionalNotification {
+  notificationId: string;
+  type: string;
+  title: string;
+  body: string;
+  href: string;
+}
+
+interface CustomerIoOutboxTask {
+  kind: "profile_sync" | "transactional_notification";
+  uid: string;
+  eventName?: string;
+  notification?: TransactionalNotification;
+}
 
 function customerIoConfig() {
   const siteId = process.env.CUSTOMERIO_SITE_ID;
@@ -39,6 +54,73 @@ async function customerIoRequest(path: string, method: "POST" | "PUT", body: obj
   }
 }
 
+async function enqueueTask(id: string, task: CustomerIoOutboxTask, reason: string): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await adminDb().collection("customerioOutbox").doc(id).set(
+    {
+      ...task,
+      status: "PENDING",
+      attempts: 0,
+      lastError: reason.slice(0, 500),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    },
+    { merge: true },
+  );
+}
+
+async function sendTransactionalNotification(
+  uid: string,
+  notification: TransactionalNotification,
+): Promise<void> {
+  const apiKey = process.env.CUSTOMERIO_APP_API_KEY;
+  const messageId = process.env.CUSTOMERIO_TRANSACTIONAL_MESSAGE_ID;
+  if (!apiKey || !messageId) throw new Error("Customer.io transactional email is not configured");
+
+  const region = process.env.CUSTOMERIO_REGION?.toLowerCase() === "eu" ? "eu" : "us";
+  const apiBase = region === "eu" ? "https://api-eu.customer.io" : "https://api.customer.io";
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  const response = await fetch(`${apiBase}/v1/send/email`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      transactional_message_id: messageId,
+      identifiers: { id: uid },
+      message_data: {
+        notification_id: notification.notificationId,
+        notification_type: notification.type,
+        title: notification.title,
+        body: notification.body,
+        action_url: `${appUrl}${notification.href}`,
+      },
+    }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) throw new Error(`Customer.io App API returned ${response.status}`);
+}
+
+/** Attempt immediately; persist the exact notification for retry if delivery is unavailable. */
+export async function deliverTransactionalNotification(
+  uid: string,
+  notification: TransactionalNotification,
+): Promise<void> {
+  try {
+    await sendTransactionalNotification(uid, notification);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Unknown transactional error";
+    console.error("Customer.io transactional email failed", reason);
+    await enqueueTask(`notification_${notification.notificationId}`, {
+      kind: "transactional_notification",
+      uid,
+      notification,
+    }, reason);
+  }
+}
+
 /** Create or update a Customer.io profile using the Firebase UID as its stable ID. */
 export async function identifyCustomer(uid: string, attributes: CustomerIoAttributes): Promise<void> {
   await customerIoRequest(`/api/v1/customers/${encodeURIComponent(uid)}`, "PUT", attributes);
@@ -68,13 +150,18 @@ function list(value: unknown): string {
  * Mirror marketplace state into flat Customer.io attributes so campaigns can
  * segment on profile gaps without reading Firestore at send time.
  */
-export async function syncMarketplaceUser(uid: string, eventName?: string): Promise<boolean> {
+export async function syncMarketplaceUser(
+  uid: string,
+  eventName?: string,
+  enqueueOnFailure = true,
+): Promise<boolean> {
   const db = adminDb();
   const userSnap = await db.collection("users").doc(uid).get();
   if (!userSnap.exists) return false;
 
   const user = userSnap.data() || {};
   const role = user.role === "expert" ? "expert" : user.role === "admin" ? "admin" : "client";
+  const authUser = await adminAuth().getUser(uid).catch(() => null);
   const attributes: CustomerIoAttributes = {
     email: text(user.email, 320),
     name: text(user.name, 160),
@@ -82,6 +169,11 @@ export async function syncMarketplaceUser(uid: string, eventName?: string): Prom
     account_status: text(user.status, 80) || "ACTIVE",
     account_created_at: text(user.createdAt, 80),
     last_login_at: text(user.lastLoginAt, 80),
+    account_email_verified: Boolean(authUser?.emailVerified),
+    account_auth_providers: (authUser?.providerData || []).map((provider) => provider.providerId).join(", "),
+    account_has_name: Boolean(user.name),
+    sync_schema_version: 1,
+    sync_last_attempt_at: new Date().toISOString(),
   };
 
   if (role === "expert") {
@@ -158,14 +250,84 @@ export async function syncMarketplaceUser(uid: string, eventName?: string): Prom
     });
   }
 
+  const relationshipField = role === "expert" ? "expertUid" : "clientId";
+  const [jobsSnap, proposalsSnap, contractsSnap, messagesSnap, notificationsSnap] = await Promise.all([
+    role === "client"
+      ? db.collection("jobs").where("clientId", "==", uid).limit(500).get()
+      : Promise.resolve(null),
+    db.collection("proposals").where(relationshipField, "==", uid).limit(500).get(),
+    db.collection("contracts").where(relationshipField, "==", uid).limit(500).get(),
+    db.collection("contractMessages").where("authorUid", "==", uid).limit(500).get(),
+    db.collection("notifications").where("recipientUid", "==", uid).limit(500).get(),
+  ]);
+  const proposals = proposalsSnap.docs.map((doc) => doc.data());
+  const contracts = contractsSnap.docs.map((doc) => doc.data());
+  const notifications = notificationsSnap.docs.map((doc) => doc.data());
+  Object.assign(attributes, {
+    marketplace_proposal_count: proposals.length,
+    marketplace_submitted_proposal_count: proposals.filter((item) => item.status === "SUBMITTED").length,
+    marketplace_accepted_proposal_count: proposals.filter((item) => item.status === "ACCEPTED").length,
+    marketplace_contract_count: contracts.length,
+    marketplace_active_contract_count: contracts.filter((item) => item.status === "ACTIVE").length,
+    marketplace_completed_contract_count: contracts.filter((item) => item.status === "COMPLETED").length,
+    messaging_sent_count: messagesSnap.size,
+    messaging_notification_count: notifications.length,
+    messaging_unread_notification_count: notifications.filter((item) => !item.readAt).length,
+  });
+  if (jobsSnap) {
+    const jobs = jobsSnap.docs.map((doc) => doc.data());
+    Object.assign(attributes, {
+      client_job_count: jobs.length,
+      client_open_job_count: jobs.filter((item) => item.status === "OPEN").length,
+      client_filled_job_count: jobs.filter((item) => item.status === "FILLED").length,
+    });
+  }
+
   try {
     await identifyCustomer(uid, attributes);
     if (eventName) await trackCustomerEvent(uid, eventName, { role });
     return true;
   } catch (error) {
-    console.error("Customer.io marketplace sync failed", error instanceof Error ? error.message : "Unknown error");
+    const reason = error instanceof Error ? error.message : "Unknown error";
+    console.error("Customer.io marketplace sync failed", reason);
+    if (enqueueOnFailure) {
+      await enqueueTask(`profile_${uid}`, { kind: "profile_sync", uid, eventName }, reason);
+    }
     return false;
   }
+}
+
+/** Drain durable failures. Safe to call repeatedly; completed records remain as an audit trail. */
+export async function drainCustomerIoOutbox(limit = 50): Promise<{ processed: number; failed: number }> {
+  const db = adminDb();
+  const snap = await db.collection("customerioOutbox").where("status", "==", "PENDING").limit(limit).get();
+  let processed = 0;
+  let failed = 0;
+
+  for (const doc of snap.docs) {
+    const task = doc.data() as CustomerIoOutboxTask & { attempts?: number };
+    try {
+      if (task.kind === "profile_sync") {
+        const ok = await syncMarketplaceUser(task.uid, task.eventName, false);
+        if (!ok) throw new Error("Profile sync failed");
+      } else if (task.kind === "transactional_notification" && task.notification) {
+        await sendTransactionalNotification(task.uid, task.notification);
+      } else {
+        throw new Error("Invalid Customer.io outbox task");
+      }
+      await doc.ref.set({ status: "COMPLETED", completedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true });
+      processed += 1;
+    } catch (error) {
+      failed += 1;
+      await doc.ref.set({
+        attempts: Number(task.attempts || 0) + 1,
+        lastError: (error instanceof Error ? error.message : "Unknown error").slice(0, 500),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    }
+  }
+
+  return { processed, failed };
 }
 
 export async function syncAllMarketplaceUsers(): Promise<{ synced: number; failed: number }> {

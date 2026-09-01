@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import type { AppNotification, NotificationType, SessionUser } from "@/lib/types";
+import { deliverTransactionalNotification } from "@/lib/customerio";
 
 const COLLECTION = "notifications";
 
@@ -31,13 +32,20 @@ export async function notifyAdmins(n: NewNotification): Promise<void> {
 
 export async function notifyUser(uid: string, n: NewNotification): Promise<void> {
   if (!firebaseAdminConfigured || !uid) return;
-  await adminDb().collection(COLLECTION).add({
+  const ref = await adminDb().collection(COLLECTION).add({
     recipientUid: uid,
     audience: "USER",
     readAt: null,
     createdAt: new Date().toISOString(),
     expertId: n.expertId ?? null,
     ...n,
+  });
+  await deliverTransactionalNotification(uid, {
+    notificationId: ref.id,
+    type: n.type,
+    title: n.title,
+    body: n.body,
+    href: n.href,
   });
 }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z
   .object({
@@ -52,6 +53,8 @@ export async function POST(req: Request) {
       createdAt: nowIso,
       updatedAt: nowIso,
     });
+
+    await syncMarketplaceUser(session.uid, "job_created");
 
     return NextResponse.json({ id: ref.id, status: "OPEN" }, { status: 201 });
   } catch (e) {

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyUser } from "@/lib/notifications";
 import type { ContractMilestone } from "@/lib/types";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 function initialMilestones(total: number): ContractMilestone[] {
   const first = Math.round(total / 2);
@@ -133,7 +134,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       body: "A contract has been created. Messaging opens when the first milestone is funded.",
       href: `/contracts/${contractRef.id}`,
     });
+    await syncMarketplaceUser(notifyExpertUid, "proposal_accepted");
   }
+
+  await syncMarketplaceUser(session.uid, "contract_created");
 
   return NextResponse.json({ ok: true, contractId: contractRef.id }, { status: 201 });
 }

@@ -17,6 +17,15 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!value) return null;
   try {
     const decoded = await adminAuth().verifySessionCookie(value, true);
+    // Password accounts must prove ownership of the mailbox before they can
+    // access authenticated marketplace pages. OAuth providers such as Google
+    // already verify the address as part of their sign-in flow.
+    if (
+      decoded.email_verified === false &&
+      decoded.firebase?.sign_in_provider === "password"
+    ) {
+      return null;
+    }
     const userDoc = await adminDb().collection("users").doc(decoded.uid).get();
     const data = userDoc.data() || {};
     const role = (data.role || (decoded.admin ? "admin" : "client")) as UserRole;

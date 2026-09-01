@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { notifyUser } from "@/lib/notifications";
+import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
   jobId: z.string().min(3).max(200),
@@ -74,7 +75,10 @@ export async function POST(req: Request) {
         body: `${profile.name || "An expert"} proposed €${input.price.toLocaleString()} over ${input.deliveryDays} days.`,
         href: "/dashboard/client/jobs",
       });
+      await syncMarketplaceUser(job.clientId, "proposal_received");
     }
+
+    await syncMarketplaceUser(session.uid, "proposal_submitted");
 
     return NextResponse.json({ id: ref.id, status: "SUBMITTED" }, { status: 201 });
   } catch (e) {
