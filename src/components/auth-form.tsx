@@ -54,8 +54,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         // Create the marketplace record (and Customer.io profile) before the
         // user leaves this page, then require mailbox verification for access.
         await establishSession(role);
-        await requestVerificationEmail();
-        router.push("/verify-email");
+        // The account already exists by this point, so a mail-delivery hiccup
+        // must not strand anyone on this form: retrying here only ever returns
+        // "email already in use". The verify page owns the resend instead.
+        const sent = await requestVerificationEmail().then(() => true, () => false);
+        router.push(sent ? "/verify-email" : "/verify-email?sent=0");
         return;
       }
 

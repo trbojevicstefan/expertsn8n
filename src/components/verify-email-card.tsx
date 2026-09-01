@@ -6,7 +6,7 @@ import { ArrowRight, LoaderCircle, MailCheck, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { requestVerificationEmail } from "@/lib/auth/client-verification";
 import { firebaseAuth } from "@/lib/firebase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 async function refreshSession() {
   const user = firebaseAuth?.currentUser;
@@ -25,7 +25,14 @@ async function refreshSession() {
 
 export function VerifyEmailCard() {
   const router = useRouter();
-  const [message, setMessage] = useState("Open the verification link we sent to your inbox.");
+  const searchParams = useSearchParams();
+  // Signup redirects here with `sent=0` when the very first send failed, so the
+  // copy never claims an email is waiting that never left.
+  const [message, setMessage] = useState(
+    searchParams.get("sent") === "0"
+      ? "We could not send the verification email automatically. Use Resend below."
+      : "Open the verification link we sent to your inbox.",
+  );
   const [working, setWorking] = useState(false);
 
   useEffect(() => {

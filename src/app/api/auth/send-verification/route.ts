@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     verificationUrl.searchParams.set("mode", "verifyEmail");
     verificationUrl.searchParams.set("oobCode", oobCode);
 
-    await sendCustomerIoEmailVerification(decoded.uid, verificationUrl.toString());
+    await sendCustomerIoEmailVerification(decoded.uid, decoded.email, verificationUrl.toString());
     await userRef.set(
       { verificationEmailLastSentAt: new Date().toISOString() },
       { merge: true },

@@ -70,66 +70,92 @@ async function enqueueTask(id: string, task: CustomerIoOutboxTask, reason: strin
   );
 }
 
-async function sendTransactionalNotification(
-  uid: string,
-  notification: TransactionalNotification,
-): Promise<void> {
-  const apiKey = process.env.CUSTOMERIO_APP_API_KEY;
-  const messageId = process.env.CUSTOMERIO_TRANSACTIONAL_MESSAGE_ID;
-  if (!apiKey || !messageId) throw new Error("Customer.io transactional email is not configured");
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function appApiBase(): string {
   const region = process.env.CUSTOMERIO_REGION?.toLowerCase() === "eu" ? "eu" : "us";
-  const apiBase = region === "eu" ? "https://api-eu.customer.io" : "https://api.customer.io";
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-  const response = await fetch(`${apiBase}/v1/send/email`, {
+  return region === "eu" ? "https://api-eu.customer.io" : "https://api.customer.io";
+}
+
+/**
+ * The App API explains every rejection in its response body. Discarding it left
+ * a bare `400` in the logs, which reads the same whether the recipient is
+ * missing, the message id is unknown or the sending domain is unverified.
+ */
+async function sendAppApiEmail(body: Record<string, unknown>): Promise<void> {
+  const apiKey = process.env.CUSTOMERIO_APP_API_KEY;
+  if (!apiKey) throw new Error("CUSTOMERIO_APP_API_KEY is not configured");
+
+  const response = await fetch(`${appApiBase()}/v1/send/email`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      transactional_message_id: messageId,
-      identifiers: { id: uid },
-      message_data: {
-        notification_id: notification.notificationId,
-        notification_type: notification.type,
-        title: notification.title,
-        body: notification.body,
-        action_url: `${appUrl}${notification.href}`,
-      },
-    }),
+    body: JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(8_000),
   });
-  if (!response.ok) throw new Error(`Customer.io App API returned ${response.status}`);
+
+  if (!response.ok) {
+    const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 500);
+    throw new Error(`Customer.io App API returned ${response.status}${detail ? `: ${detail}` : ""}`);
+  }
+}
+
+/**
+ * Every transactional send needs its own `to`: the message template carries the
+ * design, not the recipient. Firebase Auth is the authority on the address, so
+ * it settles cases where the mirrored Firestore copy is missing or malformed.
+ */
+async function recipientEmail(uid: string): Promise<string> {
+  const snap = await adminDb().collection("users").doc(uid).get();
+  const stored = String(snap.data()?.email || "").trim();
+  if (EMAIL_PATTERN.test(stored)) return stored;
+
+  const authEmail = String((await adminAuth().getUser(uid).catch(() => null))?.email || "").trim();
+  if (EMAIL_PATTERN.test(authEmail)) return authEmail;
+
+  throw new Error(`No email address on file for ${uid}`);
+}
+
+async function sendTransactionalNotification(
+  uid: string,
+  notification: TransactionalNotification,
+): Promise<void> {
+  const messageId = process.env.CUSTOMERIO_TRANSACTIONAL_MESSAGE_ID;
+  if (!messageId) throw new Error("CUSTOMERIO_TRANSACTIONAL_MESSAGE_ID is not configured");
+
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  await sendAppApiEmail({
+    transactional_message_id: messageId,
+    to: await recipientEmail(uid),
+    identifiers: { id: uid },
+    message_data: {
+      notification_id: notification.notificationId,
+      notification_type: notification.type,
+      title: notification.title,
+      body: notification.body,
+      action_url: `${appUrl}${notification.href}`,
+    },
+  });
 }
 
 /** Send a branded verification message while Firebase remains the token authority. */
 export async function sendCustomerIoEmailVerification(
   uid: string,
+  email: string,
   verificationUrl: string,
 ): Promise<void> {
-  const apiKey = process.env.CUSTOMERIO_APP_API_KEY;
   const messageId = process.env.CUSTOMERIO_VERIFICATION_MESSAGE_ID;
-  if (!apiKey || !messageId) throw new Error("Customer.io email verification is not configured");
+  if (!messageId) throw new Error("CUSTOMERIO_VERIFICATION_MESSAGE_ID is not configured");
 
-  const region = process.env.CUSTOMERIO_REGION?.toLowerCase() === "eu" ? "eu" : "us";
-  const apiBase = region === "eu" ? "https://api-eu.customer.io" : "https://api.customer.io";
-  const response = await fetch(`${apiBase}/v1/send/email`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      transactional_message_id: messageId,
-      identifiers: { id: uid },
-      message_data: { verification_url: verificationUrl },
-    }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(8_000),
+  await sendAppApiEmail({
+    transactional_message_id: messageId,
+    to: email,
+    identifiers: { id: uid },
+    message_data: { verification_url: verificationUrl },
   });
-  if (!response.ok) throw new Error(`Customer.io App API returned ${response.status}`);
 }
 
 /** Attempt immediately; persist the exact notification for retry if delivery is unavailable. */
@@ -212,7 +238,7 @@ export async function syncMarketplaceUser(
   // Customer.io rejects an empty/invalid email attribute. Legacy imported
   // profiles can still sync by their stable Firebase UID until they claim the
   // profile and add a real address.
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) attributes.email = email;
+  if (EMAIL_PATTERN.test(email)) attributes.email = email;
   if (name) attributes.name = name;
 
   if (role === "expert") {

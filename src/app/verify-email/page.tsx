@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { VerifyEmailCard } from "@/components/verify-email-card";
@@ -25,7 +26,11 @@ export default function VerifyEmailPage() {
           </div>
         </section>
         <section className="auth-form-wrap verify-form-wrap">
-          <VerifyEmailCard />
+          {/* The card reads the query string, which needs a boundary so the
+              rest of the page can still be prerendered. */}
+          <Suspense fallback={null}>
+            <VerifyEmailCard />
+          </Suspense>
         </section>
       </main>
     </>
