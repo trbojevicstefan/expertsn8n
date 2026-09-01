@@ -2,19 +2,34 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { ClientProfile } from "@/lib/types";
 
-export function ClientOnboardingForm() {
+/**
+ * One form behind both entry points. Onboarding and later edits post the same
+ * four fields, so a second form would only be a place for the two to drift.
+ */
+export function ClientProfileForm({
+  profile,
+  redirectTo,
+  submitLabel = "Save changes",
+}: {
+  profile?: ClientProfile | null;
+  redirectTo?: string;
+  submitLabel?: string;
+}) {
   const router = useRouter();
-  const [companyName, setCompanyName] = useState("");
-  const [website, setWebsite] = useState("");
-  const [billingCountry, setBillingCountry] = useState("");
-  const [description, setDescription] = useState("");
+  const [companyName, setCompanyName] = useState(profile?.companyName || "");
+  const [website, setWebsite] = useState(profile?.website || "");
+  const [billingCountry, setBillingCountry] = useState(profile?.billingCountry || "");
+  const [description, setDescription] = useState(profile?.description || "");
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    setSaved(false);
     setLoading(true);
     try {
       const response = await fetch("/api/client/profile", {
@@ -24,7 +39,11 @@ export function ClientOnboardingForm() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not save the client profile.");
-      router.push("/dashboard/client/jobs/new");
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        setSaved(true);
+      }
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the client profile.");
@@ -65,8 +84,9 @@ export function ClientOnboardingForm() {
         />
       </div>
       {error && <div className="error-box">{error}</div>}
+      {saved && <div className="info-box">Company profile saved.</div>}
       <button className="button button-primary" type="submit" disabled={loading}>
-        {loading ? "Saving..." : "Save and post a job"}
+        {loading ? "Saving..." : submitLabel}
       </button>
     </form>
   );

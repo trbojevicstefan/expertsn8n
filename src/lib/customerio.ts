@@ -1,6 +1,7 @@
+import { clientProfileGaps } from "@/lib/client-account";
 import { completenessDetail } from "@/lib/expert-account";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
-import type { ExpertProfile } from "@/lib/types";
+import type { ClientProfile, ExpertProfile } from "@/lib/types";
 
 type CustomerIoAttributes = Record<string, boolean | number | string | null>;
 
@@ -298,11 +299,7 @@ export async function syncMarketplaceUser(
   if (role === "client") {
     const clientSnap = await db.collection("clientProfiles").doc(uid).get();
     const client = clientSnap.data() || {};
-    const missing = [
-      ...(!client.companyName ? ["Company name"] : []),
-      ...(!client.billingCountry ? ["Billing country"] : []),
-      ...(!client.description ? ["Description"] : []),
-    ];
+    const missing = clientProfileGaps(client as Partial<ClientProfile>);
 
     Object.assign(attributes, {
       client_company_name: text(client.companyName, 200),

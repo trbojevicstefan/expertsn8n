@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  Bell, BriefcaseBusiness, ChevronRight, CircleDollarSign, FileCheck2, LayoutDashboard,
+  Bell, BriefcaseBusiness, Building2, ChevronRight, CircleDollarSign, FileCheck2, LayoutDashboard,
   LifeBuoy, LogOut, Plus, ScrollText, Settings, ShieldCheck, UserRoundSearch, Workflow,
 } from "lucide-react";
 import { Brand } from "./brand";
@@ -22,6 +22,7 @@ export function DashboardShell({
   const nav: NavItem[] = client
     ? [
       ["Overview", "/dashboard", LayoutDashboard],
+      ["Company profile", "/dashboard/client/profile", Building2],
       ["My jobs", "/dashboard/client/jobs", BriefcaseBusiness],
       ["Proposals", "/dashboard/client/proposals", FileCheck2],
       ["Contracts", "/dashboard/contracts", ScrollText],

@@ -1,6 +1,13 @@
-import { ClientOnboardingForm } from "@/components/client-onboarding-form";
+import { requireSession } from "@/lib/auth/server";
+import { clientProfileForUid } from "@/lib/client-account";
+import { ClientProfileForm } from "@/components/client-profile-form";
 
-export default function ClientOnboarding() {
+export const dynamic = "force-dynamic";
+
+export default async function ClientOnboarding() {
+  const session = await requireSession();
+  const profile = await clientProfileForUid(session.uid);
+
   return (
     <>
       <div className="portal-head">
@@ -9,7 +16,7 @@ export default function ClientOnboarding() {
           <p>Add enough context for experts to evaluate your projects.</p>
         </div>
       </div>
-      <ClientOnboardingForm />
+      <ClientProfileForm profile={profile} redirectTo="/dashboard/client/jobs/new" submitLabel="Save and post a job" />
     </>
   );
 }

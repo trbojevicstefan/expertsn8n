@@ -41,6 +41,11 @@ export async function POST(request: Request) {
     { merge: true },
   );
 
-  await syncMarketplaceUser(session.uid, "client_onboarding_completed");
+  // First completion and later edits are different moments for a campaign: one
+  // ends the onboarding chase, the other should not re-trigger it.
+  await syncMarketplaceUser(
+    session.uid,
+    existing.exists ? "client_profile_updated" : "client_onboarding_completed",
+  );
   return NextResponse.json({ ok: true });
 }

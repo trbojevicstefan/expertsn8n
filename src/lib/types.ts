@@ -45,6 +45,11 @@ export interface ClaimCode{
 
 export interface Showcase{id:string;expertId:string;title:string;summary:string;outcome:string;integrations:string[];complexity:"Intermediate"|"Advanced"|"Expert";}
 export interface MarketplaceJob{id:string;clientId:string;clientName:string;title:string;description:string;skills:string[];integrations:string[];visibility:JobVisibility;status:JobStatus;budgetMin:number;budgetMax:number;currency:string;delivery:string;proposalCount:number;postedAt:string;verifiedPayment:boolean;}
+export interface ClientProfile{
+  ownerUid:string;companyName:string;website:string;billingCountry:string;description:string;
+  onboardingComplete?:boolean;createdAt?:string;updatedAt?:string;
+}
+
 export interface SessionUser{uid:string;email:string;name?:string;role:UserRole;admin?:boolean;}
 
 export type NotificationType =

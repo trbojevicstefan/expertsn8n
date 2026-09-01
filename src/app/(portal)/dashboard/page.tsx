@@ -3,6 +3,7 @@ import { Inbox, Plus, UserRoundSearch } from "lucide-react";
 import { requireSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { EmptyState } from "@/components/empty-state";
+import { clientProfileForUid, clientProfileGaps } from "@/lib/client-account";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,9 @@ export default async function Dashboard() {
       ];
 
   const nothingYet = stats.every((s) => s.value === 0);
+  // Same wording the Customer.io campaign uses, so the email and the dashboard
+  // never disagree about what is outstanding.
+  const profileGaps = client ? clientProfileGaps(await clientProfileForUid(session.uid)) : [];
 
   return (
     <>
@@ -51,6 +55,14 @@ export default async function Dashboard() {
           {client ? "Post a job" : "Find projects"}
         </Link>
       </div>
+
+      {profileGaps.length > 0 && (
+        <div className="notice">
+          <strong>Your company profile is missing: {profileGaps.join(", ")}.</strong>
+          Experts weigh this up before bidding.{" "}
+          <Link href="/dashboard/client/profile">Complete your profile</Link>
+        </div>
+      )}
 
       <div className="stats-grid stats-grid-3">
         {stats.map((s) => (
