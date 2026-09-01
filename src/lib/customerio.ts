@@ -35,7 +35,11 @@ function customerIoConfig() {
   };
 }
 
-async function customerIoRequest(path: string, method: "POST" | "PUT", body: object): Promise<void> {
+async function customerIoRequest(
+  path: string,
+  method: "POST" | "PUT" | "DELETE",
+  body?: object,
+): Promise<void> {
   const config = customerIoConfig();
   if (!config) return;
 
@@ -45,7 +49,7 @@ async function customerIoRequest(path: string, method: "POST" | "PUT", body: obj
       Authorization: config.authorization,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(5_000),
   });
@@ -222,7 +226,12 @@ export async function syncMarketplaceUser(
 
   const user = userSnap.data() || {};
   const role = user.role === "expert" ? "expert" : user.role === "admin" ? "admin" : "client";
-  const authUser = await adminAuth().getUser(uid).catch(() => null);
+  const authUser = await lookupAuthUser(uid);
+  // A profile for a deleted account must never be written back: in Customer.io
+  // an email belongs to exactly one profile, so a resurrected ghost would keep
+  // the address hostage and the live account that re-signed up with it would
+  // silently sync without one.
+  if (authUser === null) return false;
   const email = text(user.email, 320).trim();
   const name = text(user.name, 160).trim();
   const attributes: CustomerIoAttributes = {
@@ -359,6 +368,50 @@ export async function syncMarketplaceUser(
   }
 }
 
+/**
+ * `null` means the account is definitively gone; a transient lookup failure
+ * throws instead, so nothing downstream ever mistakes an outage for a deletion.
+ */
+async function lookupAuthUser(uid: string) {
+  try {
+    return await adminAuth().getUser(uid);
+  } catch (error) {
+    if ((error as { code?: string }).code === "auth/user-not-found") return null;
+    throw error;
+  }
+}
+
+/**
+ * Deleting a Firebase account cascades nowhere on its own, and the leftover
+ * Customer.io profile keeps owning the email address. Customer.io then drops
+ * that address from whichever live profile signs up with it next -- quietly,
+ * with a 200 -- leaving an account no campaign can ever reach.
+ *
+ * The Firestore record is stamped rather than removed: it is the only trace
+ * that the account existed, and the expert profile and documents hanging off
+ * it are a separate decision.
+ */
+export async function reconcileDeletedAccounts(): Promise<{ reconciled: number; failed: number }> {
+  const snap = await adminDb().collection("users").get();
+  let reconciled = 0;
+  let failed = 0;
+
+  for (const doc of snap.docs) {
+    try {
+      if (doc.data().status === "DELETED") continue;
+      if (await lookupAuthUser(doc.id)) continue;
+      await customerIoRequest(`/api/v1/customers/${encodeURIComponent(doc.id)}`, "DELETE");
+      await doc.ref.set({ status: "DELETED", deletedAt: new Date().toISOString() }, { merge: true });
+      reconciled += 1;
+    } catch (error) {
+      failed += 1;
+      console.error("Customer.io reconcile failed", doc.id, error instanceof Error ? error.message : error);
+    }
+  }
+
+  return { reconciled, failed };
+}
+
 /** Drain durable failures. Safe to call repeatedly; completed records remain as an audit trail. */
 export async function drainCustomerIoOutbox(limit = 50): Promise<{ processed: number; failed: number }> {
   const db = adminDb();
@@ -397,8 +450,9 @@ export async function syncAllMarketplaceUsers(): Promise<{ synced: number; faile
   let synced = 0;
   let failed = 0;
 
-  for (let index = 0; index < snap.docs.length; index += 10) {
-    const batch = snap.docs.slice(index, index + 10);
+  const pending = snap.docs.filter((doc) => doc.data().status !== "DELETED");
+  for (let index = 0; index < pending.length; index += 10) {
+    const batch = pending.slice(index, index + 10);
     const results = await Promise.all(
       batch.map((doc) => syncMarketplaceUser(doc.id, "customerio_profile_backfilled")),
     );

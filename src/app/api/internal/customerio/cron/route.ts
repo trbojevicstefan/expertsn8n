@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { drainCustomerIoOutbox, syncAllMarketplaceUsers } from "@/lib/customerio";
+import { drainCustomerIoOutbox, reconcileDeletedAccounts, syncAllMarketplaceUsers } from "@/lib/customerio";
 
 function authorized(request: Request): boolean {
   const expected = process.env.CUSTOMERIO_CRON_SECRET || "";
@@ -14,7 +14,15 @@ export async function POST(request: Request) {
 
   const url = new URL(request.url);
   const full = url.searchParams.get("full") === "1";
+  // Reconcile first: a backfill that ran before it would re-create the very
+  // profiles this pass exists to remove.
+  const reconcile = await reconcileDeletedAccounts();
   const outbox = await drainCustomerIoOutbox(100);
   const sync = full ? await syncAllMarketplaceUsers() : null;
-  return NextResponse.json({ ok: outbox.failed === 0 && (!sync || sync.failed === 0), outbox, sync });
+  return NextResponse.json({
+    ok: reconcile.failed === 0 && outbox.failed === 0 && (!sync || sync.failed === 0),
+    reconcile,
+    outbox,
+    sync,
+  });
 }

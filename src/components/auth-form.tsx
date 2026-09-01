@@ -83,10 +83,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setLoading(true);
     try {
       await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
-      await establishSession(mode === "sign-up" ? role : undefined);
+      // Google on an address that already has a password account links the two
+      // onto one uid, so the role card is only a proposal: an existing account
+      // keeps the role it signed up with. Following the card instead would send
+      // an expert into client onboarding they cannot complete.
+      const session = await establishSession(mode === "sign-up" ? role : undefined);
       router.push(
         mode === "sign-up"
-          ? role === "expert"
+          ? session.role === "expert"
             ? "/dashboard/expert/profile"
             : "/onboarding/client"
           : "/dashboard",
