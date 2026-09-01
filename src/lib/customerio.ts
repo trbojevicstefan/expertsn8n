@@ -163,8 +163,8 @@ export async function syncMarketplaceUser(
   const role = user.role === "expert" ? "expert" : user.role === "admin" ? "admin" : "client";
   const authUser = await adminAuth().getUser(uid).catch(() => null);
   const email = text(user.email, 320).trim();
+  const name = text(user.name, 160).trim();
   const attributes: CustomerIoAttributes = {
-    name: text(user.name, 160),
     role,
     account_status: text(user.status, 80) || "ACTIVE",
     account_created_at: text(user.createdAt, 80),
@@ -179,6 +179,7 @@ export async function syncMarketplaceUser(
   // profiles can still sync by their stable Firebase UID until they claim the
   // profile and add a real address.
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) attributes.email = email;
+  if (name) attributes.name = name;
 
   if (role === "expert") {
     const expertId = text(user.expertId, 200) || uid;
