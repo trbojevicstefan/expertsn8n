@@ -30,7 +30,7 @@ env:
     value: 1:932762026628:web:b5686c5c1d618ec9d8b8d1
     availability: [ BUILD, RUNTIME ]
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://n8nexperts--studio-7677538569-60fbd.us-central1.hosted.app
+    value: https://n8nexperts.io
     availability: [ BUILD, RUNTIME ]
 
   # Server runtime - Admin SDK uses the App Hosting compute service account.
