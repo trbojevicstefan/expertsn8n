@@ -50,7 +50,8 @@ async function customerIoRequest(path: string, method: "POST" | "PUT", body: obj
   });
 
   if (!response.ok) {
-    throw new Error(`Customer.io Track API returned ${response.status}`);
+    const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 500);
+    throw new Error(`Customer.io Track API returned ${response.status}${detail ? `: ${detail}` : ""}`);
   }
 }
 
@@ -139,11 +140,16 @@ export async function trackCustomerEvent(
 }
 
 function text(value: unknown, max = 1000): string {
-  return typeof value === "string" ? value.slice(0, max) : "";
+  if (typeof value !== "string") return "";
+  const bytes = Buffer.from(value, "utf8");
+  if (bytes.length <= max) return value;
+  let end = max;
+  while (end > 0 && (bytes[end]! & 0xc0) === 0x80) end -= 1;
+  return bytes.subarray(0, end).toString("utf8");
 }
 
 function list(value: unknown): string {
-  return Array.isArray(value) ? value.map(String).filter(Boolean).join(", ").slice(0, 1000) : "";
+  return Array.isArray(value) ? text(value.map(String).filter(Boolean).join(", ")) : "";
 }
 
 /**
