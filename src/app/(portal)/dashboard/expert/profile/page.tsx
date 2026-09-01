@@ -66,7 +66,8 @@ export default async function ExpertProfilePage({
           <p>This is the profile clients see in the directory.</p>
         </div>
         <Link href={`/experts/${profile.slug}`} className="button button-secondary" target="_blank">
-          Preview public profile <ExternalLink size={15} strokeWidth={2.2} />
+          {profile.status === "PUBLISHED" ? "View public profile" : "Preview public profile"}
+          <ExternalLink size={15} strokeWidth={2.2} />
         </Link>
       </div>
 

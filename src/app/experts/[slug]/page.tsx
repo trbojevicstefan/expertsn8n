@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, Info, MapPin, ShieldCheck, Star } from "lucide-react";
+import { CheckCircle2, Eye, ExternalLink, Info, MapPin, ShieldCheck, Star } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
 import { StatusBadge } from "@/components/status-badge";
 import { Avatar } from "@/components/avatar";
-import { findExpertBySlug, listShowcasesForExpert, listJobsForClient } from "@/lib/data";
+import { findExpertBySlug, findExpertBySlugForViewer, listShowcasesForExpert, listJobsForClient } from "@/lib/data";
 import { getSession } from "@/lib/auth/server";
 import { InviteExpert } from "@/components/invite-expert";
 import { StructuredData, expertSchema } from "@/components/structured-data";
@@ -15,7 +15,9 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const expert = await findExpertBySlug(slug);
-  if (!expert) return { title: "Expert not found" };
+  // Metadata is public output, so it describes published profiles only. A
+  // preview reaches the page through the session, never through a crawler.
+  if (!expert) return { title: "Expert profile", robots: { index: false, follow: false } };
   const description = expert.bio.slice(0, 200);
   return {
     title: `${expert.name} — ${expert.title}`,
@@ -33,10 +35,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ExpertPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const expert = await findExpertBySlug(slug);
-  if (!expert) notFound();
+  const session = await getSession();
+  const found = await findExpertBySlugForViewer(slug, session);
+  if (!found) notFound();
 
-  const [items, session] = await Promise.all([listShowcasesForExpert(expert.id), getSession()]);
+  const { profile: expert, preview } = found;
+  const items = await listShowcasesForExpert(expert.id);
   const canInvite = Boolean(session && (session.role === "client" || session.admin));
   const myJobs = canInvite && session
     ? (await listJobsForClient(session.uid))
@@ -49,10 +53,23 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
 
   return (
     <>
-      <StructuredData data={expertSchema(expert)} />
+      {/* An unpublished profile must never be indexed or shared as if it were live. */}
+      {!preview && <StructuredData data={expertSchema(expert)} />}
       <SiteHeader />
       <main>
         <div className="container profile-grid">
+          {preview && (
+            <div className="funding-banner" style={{ gridColumn: "1 / -1" }}>
+              <Eye size={20} strokeWidth={2.2} />
+              <div>
+                <strong>Preview — clients cannot see this yet.</strong>
+                <span>
+                  This is exactly how your profile will read once it is published. Its status is{" "}
+                  {expert.status}. Only approved showcases appear here, the same as in the directory.
+                </span>
+              </div>
+            </div>
+          )}
           <div className="profile-main">
             <section className="profile-header card">
               <div className="profile-heading">

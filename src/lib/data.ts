@@ -34,6 +34,33 @@ export async function findExpertBySlug(slug: string) {
   return profile.status === "PUBLISHED" ? profile : null;
 }
 
+/**
+ * The directory shows PUBLISHED profiles only, but an expert has to be able to
+ * see what theirs will look like before it gets there -- and a reviewer has to
+ * see the same thing. Ownership is resolved here so the public page can serve
+ * the preview rather than a second, drifting copy of it.
+ */
+export async function findExpertBySlugForViewer(
+  slug: string,
+  viewer?: { uid: string; admin?: boolean } | null,
+): Promise<{ profile: ExpertProfile; preview: boolean } | null> {
+  if (!firebaseAdminConfigured) return null;
+  const snap = await adminDb().collection("expertProfiles").where("slug", "==", slug).limit(1).get();
+  const doc = snap.docs[0];
+  if (!doc) return null;
+
+  const profile = { id: doc.id, ...doc.data() } as ExpertProfile;
+  if (profile.status === "PUBLISHED") return { profile, preview: false };
+  if (!viewer) return null;
+  if (viewer.admin) return { profile, preview: true };
+
+  // Someone who claimed a seeded profile is linked through `users/{uid}`, so
+  // the document id alone would miss them.
+  const linkedId = (await adminDb().collection("users").doc(viewer.uid).get()).data()?.expertId;
+  const owns = profile.claimedByUid === viewer.uid || linkedId === profile.id;
+  return owns ? { profile, preview: true } : null;
+}
+
 export async function listShowcasesForExpert(expertId: string): Promise<Showcase[]> {
   if (!firebaseAdminConfigured) return empty<Showcase>();
   const snap = await adminDb()
