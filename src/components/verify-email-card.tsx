@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { sendEmailVerification } from "firebase/auth";
+import { ArrowRight, LoaderCircle, MailCheck, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { useRouter } from "next/navigation";
 
@@ -63,17 +65,32 @@ export function VerifyEmailCard() {
   };
 
   return (
-    <div className="auth-form">
+    <div className="auth-form verify-card">
+      <div className="verify-icon" aria-hidden="true">
+        <MailCheck size={28} />
+      </div>
+      <span className="eyebrow verify-eyebrow">Check your inbox</span>
       <h1>Verify your email</h1>
-      <p>{message}</p>
+      <p className="verify-lead">
+        We sent a secure verification link to the email address connected to your account.
+      </p>
+      <div className="verify-status" role="status" aria-live="polite">
+        <span className="verify-status-dot" aria-hidden="true" />
+        <span>{message}</span>
+      </div>
       <button className="button button-primary button-wide" disabled={working} onClick={check}>
-        I verified my email
+        {working ? <LoaderCircle className="verify-spinner" size={17} /> : <ArrowRight size={17} />}
+        {working ? "Checking..." : "I verified my email"}
       </button>
       <button className="button button-secondary button-wide" disabled={working} onClick={resend}>
+        <RefreshCw size={16} />
         Resend verification email
       </button>
-      <p style={{ marginTop: 18, fontSize: 12, textAlign: "center" }}>
-        Wrong account? <a href="/sign-in" style={{ color: "#2563eb", fontWeight: 700 }}>Return to sign in</a>
+      <p className="verify-auto-check">
+        <span aria-hidden="true" /> This page checks your verification automatically every few seconds.
+      </p>
+      <p className="verify-account-link">
+        Wrong account? <Link href="/sign-in">Return to sign in</Link>
       </p>
     </div>
   );
