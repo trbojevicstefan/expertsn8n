@@ -40,7 +40,7 @@ export function ResetPasswordForm() {
       return;
     }
     if (!firebaseAuth) {
-      setError("Firebase is not configured.");
+      setError("Password changes are temporarily unavailable. Please try again shortly.");
       return;
     }
 

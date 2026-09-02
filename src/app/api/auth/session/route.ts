@@ -75,6 +75,7 @@ async function ensureExpertProfile(uid: string, name: string, email: string): Pr
     hourlyRate: 0,
     currency: "EUR",
     availability: "",
+    engagementTypes: [],
     rating: 0,
     reviewCount: 0,
     completedProjects: 0,

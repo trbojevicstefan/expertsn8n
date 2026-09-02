@@ -5,6 +5,7 @@ import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { syncMarketplaceUser } from "@/lib/customerio";
 import { describeZodIssues, issueFields } from "@/lib/validation";
+import { AVAILABILITY_OPTIONS, ENGAGEMENT_OPTIONS } from "@/lib/expert-availability";
 
 export const N8N_EXPERIENCE_OPTIONS = [
   "n8n Cloud",
@@ -27,6 +28,7 @@ const FIELD_LABELS: Record<string, string> = {
   timezone: "Timezone",
   hourlyRate: "Reference hourly rate",
   availability: "Availability",
+  engagementTypes: "How you like to work",
   skills: "Skills",
   integrations: "Integrations",
   languages: "Languages",
@@ -50,7 +52,9 @@ const schema = z.object({
   country: z.string().max(80),
   timezone: z.string().max(40),
   hourlyRate: z.number().int().min(0).max(1000),
-  availability: z.string().max(80),
+  // Empty stays legal: a profile that has never answered is not an error.
+  availability: z.union([z.literal(""), z.enum(AVAILABILITY_OPTIONS)]),
+  engagementTypes: z.array(z.enum(ENGAGEMENT_OPTIONS)).max(ENGAGEMENT_OPTIONS.length).default([]),
   // Sized for what the importer actually wrote, not for hand typing. Seeded
   // profiles arrived with 36 skills and names as long as "Continuous
   // Integration and Continuous Delivery (CI/CD)", which the old caps of 20 and

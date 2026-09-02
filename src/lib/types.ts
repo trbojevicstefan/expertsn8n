@@ -24,6 +24,8 @@ export interface ExpertProfile{
   languages?:string[];
   yearsExperience?:number;
   hoursPerWeek?:number;
+  /** Shapes of work taken on, split out of the old free-text availability box. */
+  engagementTypes?:string[];
   minEngagement?:number;
   n8nExperience?:string[];
   /** Fields the expert still has to supply. Drives the completeness prompts. */

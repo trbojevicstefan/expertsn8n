@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CheckCircle2, MapPin, Star } from "lucide-react";
 import type { ExpertProfile } from "@/lib/types";
+import { isOpenToWork } from "@/lib/expert-availability";
 import { Avatar } from "./avatar";
 
 export function ExpertCard({ expert }: { expert: ExpertProfile }) {
@@ -51,7 +52,8 @@ export function ExpertCard({ expert }: { expert: ExpertProfile }) {
       <div className="card-footer">
         {expert.availability ? (
           <>
-            <span className="availability-dot" />
+            {/* The dot reads as "yes, now" — it has to follow the answer. */}
+            {isOpenToWork(expert.availability) && <span className="availability-dot" />}
             <span>{expert.availability}</span>
           </>
         ) : (

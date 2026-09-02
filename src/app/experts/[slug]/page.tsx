@@ -9,6 +9,7 @@ import { findExpertBySlug, findExpertBySlugForViewer, listShowcasesForExpert, li
 import { getSession } from "@/lib/auth/server";
 import { InviteExpert } from "@/components/invite-expert";
 import { StructuredData, expertSchema } from "@/components/structured-data";
+import { isOpenToWork } from "@/lib/expert-availability";
 
 export const dynamic = "force-dynamic";
 
@@ -151,7 +152,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
                     ? <><strong>€{expert.hourlyRate}</strong><span>/hr reference</span></>
                     : <strong className="rate-tbd">Rate on request</strong>}
                 </div>
-                {expert.availability && <StatusBadge tone="success">Available</StatusBadge>}
+                {isOpenToWork(expert.availability) && <StatusBadge tone="success">Available</StatusBadge>}
               </div>
 
               {canInvite && myJobs.length > 0 ? (
@@ -189,6 +190,9 @@ export default async function ExpertPage({ params }: { params: Promise<{ slug: s
                 </div>
                 {expert.hoursPerWeek ? (
                   <div className="fact"><span>Hours per week</span><strong>{expert.hoursPerWeek}</strong></div>
+                ) : null}
+                {expert.engagementTypes?.length ? (
+                  <div className="fact"><span>Works as</span><strong>{expert.engagementTypes.join(", ")}</strong></div>
                 ) : null}
                 {expert.yearsExperience ? (
                   <div className="fact"><span>Experience</span><strong>{expert.yearsExperience}+ years</strong></div>

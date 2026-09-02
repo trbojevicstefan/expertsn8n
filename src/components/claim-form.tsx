@@ -109,7 +109,7 @@ export function ClaimForm() {
           code we sent you to take ownership of it.
         </p>
         {!firebaseClientConfigured && (
-          <div className="info-box">Authentication is not configured in this environment.</div>
+          <div className="info-box">Claiming is temporarily unavailable. Please try again shortly.</div>
         )}
         <div className="field">
           <label htmlFor="claim-email">Email address</label>

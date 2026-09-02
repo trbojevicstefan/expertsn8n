@@ -49,7 +49,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     event.preventDefault();
     setError("");
     if (!firebaseAuth) {
-      setError("Firebase is not configured yet. Add the NEXT_PUBLIC_FIREBASE_* environment variables.");
+      setError("Sign-in is temporarily unavailable. Please try again shortly.");
       return;
     }
 
@@ -84,7 +84,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   const google = async () => {
     if (!firebaseAuth) {
-      setError("Firebase is not configured.");
+      setError("Sign-in is temporarily unavailable. Please try again shortly.");
       return;
     }
 
@@ -120,8 +120,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       </p>
       {!firebaseClientConfigured && (
         <div className="info-box">
-          Firebase client environment variables are not set. The marketing site still works, but
-          authentication needs configuration.
+          Sign-in is temporarily unavailable. The rest of the site still works — please try again
+          shortly.
         </div>
       )}
       {mode === "sign-up" && (

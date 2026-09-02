@@ -6,6 +6,7 @@ import { ref, uploadBytes } from "firebase/storage";
 import { AlertTriangle, CheckCircle2, FileText, Plus, Send, Trash2, Upload, UserRound } from "lucide-react";
 import { firebaseStorage } from "@/lib/firebase/client";
 import type { ExpertDocument, ExpertProfile } from "@/lib/types";
+import { AVAILABILITY_OPTIONS, ENGAGEMENT_OPTIONS } from "@/lib/expert-availability";
 
 /** Kept in step with the schema the update route enforces. */
 const SKILL_LIMIT = 50;
@@ -67,6 +68,7 @@ export function ProfileEditor({
     minEngagement: profile.minEngagement || 0,
   });
   const [n8nExperience, setN8nExperience] = useState<string[]>(profile.n8nExperience || []);
+  const [engagementTypes, setEngagementTypes] = useState<string[]>(profile.engagementTypes || []);
   const [links, setLinks] = useState<{ label: string; url: string }[]>(profile.links || []);
   const [photoUrl, setPhotoUrl] = useState(profile.photoUrl || "");
   const [documents, setDocuments] = useState(initialDocuments);
@@ -100,6 +102,7 @@ export function ProfileEditor({
           integrations: form.integrations.split(",").map((s) => s.trim()).filter(Boolean),
           languages: form.languages.split(",").map((s) => s.trim()).filter(Boolean),
           n8nExperience,
+          engagementTypes,
           links: links.filter((l) => l.label.trim() && l.url.trim()),
         }),
       });
@@ -315,7 +318,20 @@ export function ProfileEditor({
         </div>
         <div className="field">
           <label htmlFor="pe-avail">Availability</label>
-          <input id="pe-avail" className="input" placeholder="20 hrs / week" value={form.availability} onChange={(e) => set("availability", e.target.value)} />
+          <select
+            id="pe-avail"
+            className="input"
+            value={form.availability}
+            onChange={(e) => set("availability", e.target.value)}
+          >
+            <option value="">Select when you can start</option>
+            {AVAILABILITY_OPTIONS.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+          <span className="field-hint">
+            When you could take something on. How many hours you have is the field below.
+          </span>
         </div>
         <div className="form-row">
           <div className="field">
@@ -374,6 +390,25 @@ export function ProfileEditor({
             />
             <span className="field-hint">Saves both sides a conversation that was never going to work.</span>
           </div>
+        </div>
+        <div className="field">
+          <label>How you like to work</label>
+          <div className="checkbox-grid">
+            {ENGAGEMENT_OPTIONS.map((opt) => (
+              <label className="check" key={opt}>
+                <input
+                  type="checkbox"
+                  checked={engagementTypes.includes(opt)}
+                  onChange={(e) =>
+                    setEngagementTypes(e.target.checked
+                      ? [...engagementTypes, opt]
+                      : engagementTypes.filter((x) => x !== opt))}
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+          <span className="field-hint">Pick any that apply. Clients filter on this when they shortlist.</span>
         </div>
         <div className="field">
           <label>Where your n8n experience sits</label>

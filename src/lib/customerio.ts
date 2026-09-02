@@ -310,6 +310,7 @@ export async function syncMarketplaceUser(
       expert_country: text(profile.country, 120),
       expert_timezone: text(profile.timezone, 80),
       expert_availability: text(profile.availability, 120),
+      expert_engagement_types: list(profile.engagementTypes),
       expert_hourly_rate: Number(profile.hourlyRate || 0),
       expert_currency: text(profile.currency, 16) || "EUR",
       expert_years_experience: Number(profile.yearsExperience || 0),
