@@ -55,17 +55,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Profiles are not editable in this environment." }, { status: 503 });
   }
 
-  let input: z.infer<typeof schema>;
-  try {
-    input = schema.parse(await req.json());
-  } catch {
-    return NextResponse.json({ error: "Check the fields and try again." }, { status: 400 });
+  // Naming the fields turns a dead end into something fixable, and puts the
+  // reason in the logs. Only the field paths are recorded -- never the values.
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const fields = [...new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "")))].filter(Boolean);
+    console.error("Expert profile update rejected", fields.join(", "));
+    return NextResponse.json(
+      {
+        error: fields.length
+          ? `Check these fields and try again: ${fields.join(", ")}.`
+          : "Check the fields and try again.",
+      },
+      { status: 400 },
+    );
   }
+  const input = parsed.data;
 
   try {
     assertNoOffPlatformContact(input.bio);
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid bio." }, { status: 400 });
+    const message = e instanceof Error ? e.message : "Invalid bio.";
+    console.error("Expert profile update blocked by the contact guard");
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   const db = adminDb();

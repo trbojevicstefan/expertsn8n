@@ -279,8 +279,9 @@ export function ProfileEditor({
           <label htmlFor="pe-bio">About your work</label>
           <textarea id="pe-bio" className="textarea" value={form.bio} onChange={(e) => set("bio", e.target.value)} required />
           <span className="field-hint">
-            Put links in the profile links section rather than the bio — contact details and external
-            links are stripped from bios.
+            Put links in the profile links section rather than the bio — a bio containing contact
+            details or external links is rejected, not cleaned up. Naming the tools you automate
+            (WhatsApp, Telegram, LinkedIn) is fine.
           </span>
         </div>
         <div className="form-row">
