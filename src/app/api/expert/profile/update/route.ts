@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { syncMarketplaceUser } from "@/lib/customerio";
+import { describeZodIssues, issueFields } from "@/lib/validation";
 
 export const N8N_EXPERIENCE_OPTIONS = [
   "n8n Cloud",
@@ -13,6 +14,30 @@ export const N8N_EXPERIENCE_OPTIONS = [
   "AI agents in n8n",
   "Migrations from Zapier or Make",
 ];
+
+export const SKILL_LIMIT = 50;
+
+const FIELD_LABELS: Record<string, string> = {
+  name: "Name",
+  companyName: "Company name",
+  title: "Headline",
+  bio: "About your work",
+  location: "Location",
+  country: "Country",
+  timezone: "Timezone",
+  hourlyRate: "Reference hourly rate",
+  availability: "Availability",
+  skills: "Skills",
+  integrations: "Integrations",
+  languages: "Languages",
+  yearsExperience: "Years of experience",
+  hoursPerWeek: "Hours per week",
+  minEngagement: "Minimum engagement",
+  n8nExperience: "n8n experience",
+  links: "Links",
+  "links.url": "Link address",
+  "links.label": "Link label",
+};
 
 const schema = z.object({
   // Editable, unlike the slug: public profile URLs are already circulating in
@@ -26,9 +51,14 @@ const schema = z.object({
   timezone: z.string().max(40),
   hourlyRate: z.number().int().min(0).max(1000),
   availability: z.string().max(80),
-  skills: z.array(z.string().min(1).max(48)).max(20),
-  integrations: z.array(z.string().min(1).max(48)).max(20),
-  languages: z.array(z.string().min(1).max(40)).max(10).default([]),
+  // Sized for what the importer actually wrote, not for hand typing. Seeded
+  // profiles arrived with 36 skills and names as long as "Continuous
+  // Integration and Continuous Delivery (CI/CD)", which the old caps of 20 and
+  // 48 rejected -- leaving two people unable to save their own profile at all,
+  // however they edited it.
+  skills: z.array(z.string().min(1).max(80)).max(SKILL_LIMIT),
+  integrations: z.array(z.string().min(1).max(80)).max(SKILL_LIMIT),
+  languages: z.array(z.string().min(1).max(60)).max(20).default([]),
   yearsExperience: z.number().int().min(0).max(60).default(0),
   hoursPerWeek: z.number().int().min(0).max(80).default(0),
   minEngagement: z.number().int().min(0).max(1000000).default(0),
@@ -59,14 +89,9 @@ export async function POST(req: Request) {
   // reason in the logs. Only the field paths are recorded -- never the values.
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    const fields = [...new Set(parsed.error.issues.map((issue) => String(issue.path[0] ?? "")))].filter(Boolean);
-    console.error("Expert profile update rejected", fields.join(", "));
+    console.error("Expert profile update rejected", issueFields(parsed.error));
     return NextResponse.json(
-      {
-        error: fields.length
-          ? `Check these fields and try again: ${fields.join(", ")}.`
-          : "Check the fields and try again.",
-      },
+      { error: describeZodIssues(parsed.error, FIELD_LABELS) || "Check the fields and try again." },
       { status: 400 },
     );
   }

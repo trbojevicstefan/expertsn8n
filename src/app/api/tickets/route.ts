@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
+import { describeZodIssues } from "@/lib/validation";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { notifyAdmins } from "@/lib/notifications";
 import type { Contract } from "@/lib/types";
@@ -24,15 +25,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Support is not available right now." }, { status: 503 });
   }
 
-  let input: z.infer<typeof schema>;
-  try {
-    input = schema.parse(await req.json());
-  } catch {
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Give it a subject and describe what happened in a couple of sentences." },
+      { error: describeZodIssues(parsed.error, { subject: "Subject", body: "What happened", kind: "Type" }) },
       { status: 400 },
     );
   }
+  const input = parsed.data;
 
   const db = adminDb();
   const nowIso = new Date().toISOString();

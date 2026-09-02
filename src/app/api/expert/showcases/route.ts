@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
+import { describeZodIssues } from "@/lib/validation";
 import { notifyAdmins } from "@/lib/notifications";
 import { syncMarketplaceUser } from "@/lib/customerio";
 
@@ -29,15 +30,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Showcases are not available right now." }, { status: 503 });
   }
 
-  let input: z.infer<typeof schema>;
-  try {
-    input = schema.parse(await req.json());
-  } catch {
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Give the showcase a title, at least a short paragraph of detail, and an outcome." },
+      { error: describeZodIssues(parsed.error, { title: "Title", summary: "What you built", outcome: "Outcome", integrations: "Integrations", complexity: "Complexity" }) },
       { status: 400 },
     );
   }
+  const input = parsed.data;
 
   try {
     assertNoOffPlatformContact(`${input.summary} ${input.outcome}`);

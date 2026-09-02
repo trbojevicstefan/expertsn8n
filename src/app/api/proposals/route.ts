@@ -4,8 +4,17 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
+import { describeZodIssues } from "@/lib/validation";
 import { notifyUser } from "@/lib/notifications";
 import { syncMarketplaceUser } from "@/lib/customerio";
+
+const PROPOSAL_LABELS: Record<string, string> = {
+  jobId: "Job",
+  scope: "How you would approach it",
+  amount: "Amount",
+  currency: "Currency",
+  deliveryDays: "Delivery time",
+};
 
 const schema = z.object({
   jobId: z.string().min(3).max(200),
@@ -23,8 +32,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Proposals are not available right now." }, { status: 503 });
   }
 
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: describeZodIssues(parsed.error, PROPOSAL_LABELS) }, { status: 400 });
+  }
+
   try {
-    const input = schema.parse(await req.json());
+    const input = parsed.data;
     assertNoOffPlatformContact(input.scope);
 
     const db = adminDb();

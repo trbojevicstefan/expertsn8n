@@ -7,6 +7,9 @@ import { AlertTriangle, CheckCircle2, FileText, Plus, Send, Trash2, Upload, User
 import { firebaseStorage } from "@/lib/firebase/client";
 import type { ExpertDocument, ExpertProfile } from "@/lib/types";
 
+/** Kept in step with the schema the update route enforces. */
+const SKILL_LIMIT = 50;
+
 const N8N_EXPERIENCE_OPTIONS = [
   "n8n Cloud",
   "Self-hosted n8n",
@@ -72,6 +75,12 @@ export function ProfileEditor({
   const [busy, setBusy] = useState("");
 
   const set = (k: keyof typeof form, v: string | number) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Counted next to the field so a pasted list that is over the limit says so
+  // while it is being typed, rather than coming back as a rejected save.
+  const countItems = (value: string) => value.split(",").map((s) => s.trim()).filter(Boolean).length;
+  const skillCount = countItems(form.skills);
+  const integrationCount = countItems(form.integrations);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -312,10 +321,20 @@ export function ProfileEditor({
           <div className="field">
             <label htmlFor="pe-skills">Skills, comma separated</label>
             <input id="pe-skills" className="input" value={form.skills} onChange={(e) => set("skills", e.target.value)} />
+            <span className="field-hint" style={skillCount > SKILL_LIMIT ? { color: "var(--danger)" } : undefined}>
+              {skillCount > SKILL_LIMIT
+                ? `${skillCount} skills — the limit is ${SKILL_LIMIT}. Remove ${skillCount - SKILL_LIMIT} to save.`
+                : `${skillCount} of ${SKILL_LIMIT} used.`}
+            </span>
           </div>
           <div className="field">
             <label htmlFor="pe-int">Integrations, comma separated</label>
             <input id="pe-int" className="input" value={form.integrations} onChange={(e) => set("integrations", e.target.value)} />
+            <span className="field-hint" style={integrationCount > SKILL_LIMIT ? { color: "var(--danger)" } : undefined}>
+              {integrationCount > SKILL_LIMIT
+                ? `${integrationCount} integrations — the limit is ${SKILL_LIMIT}. Remove ${integrationCount - SKILL_LIMIT} to save.`
+                : `${integrationCount} of ${SKILL_LIMIT} used.`}
+            </span>
           </div>
         </div>
       </div>

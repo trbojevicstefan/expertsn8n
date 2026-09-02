@@ -3,7 +3,20 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/server";
 import { adminDb, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
+import { describeZodIssues } from "@/lib/validation";
 import { syncMarketplaceUser } from "@/lib/customerio";
+
+const JOB_LABELS: Record<string, string> = {
+  title: "Job title",
+  description: "Description",
+  skills: "Skills",
+  integrations: "Integrations",
+  budgetMin: "Minimum budget",
+  budgetMax: "Maximum budget",
+  currency: "Currency",
+  delivery: "Delivery timeframe",
+  visibility: "Visibility",
+};
 
 const schema = z
   .object({
@@ -30,8 +43,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Firebase Admin is not configured." }, { status: 503 });
   }
 
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: describeZodIssues(parsed.error, JOB_LABELS) }, { status: 400 });
+  }
+
   try {
-    const input = schema.parse(await req.json());
+    const input = parsed.data;
     assertNoOffPlatformContact(input.description);
 
     const nowIso = new Date().toISOString();
