@@ -47,8 +47,14 @@ async function ensureExpertProfile(uid: string, name: string, email: string): Pr
   const userSnap = await db.collection("users").doc(uid).get();
   if ((userSnap.data() || {}).expertId) return;
 
+  // A profile already sitting at this id with no link pointing at it is a
+  // half-finished account: returning here without repairing the link would
+  // strand it permanently, since every later sign-in takes this same branch.
   const profileRef = db.collection("expertProfiles").doc(uid);
-  if ((await profileRef.get()).exists) return;
+  if ((await profileRef.get()).exists) {
+    await db.collection("users").doc(uid).set({ expertId: uid }, { merge: true });
+    return;
+  }
 
   const displayName = name || email.split("@")[0] || "Expert";
   const nowIso = new Date().toISOString();
