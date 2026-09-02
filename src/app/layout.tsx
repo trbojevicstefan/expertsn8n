@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
+import { Reveal } from "@/components/reveal";
 
 const display = Fraunces({
   subsets: ["latin"],
@@ -60,7 +61,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Reveal />
+        {children}
+      </body>
     </html>
   );
 }

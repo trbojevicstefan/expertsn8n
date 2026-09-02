@@ -13,7 +13,7 @@ import {
 import { listPublishedExperts, marketplaceStats } from "@/lib/data";
 import { faqs } from "@/lib/site-content";
 import { StructuredData } from "@/components/structured-data";
-import { NodeField } from "@/components/node-field";
+import { AmbientWash } from "@/components/ambient-wash";
 
 // The featured strip reads live profiles, so the page cannot be frozen at build
 // time (where Firebase Admin credentials do not exist and demo data would be
@@ -62,13 +62,9 @@ export default async function Home() {
       <SiteHeader />
       <main>
         <section className="hero">
-          <NodeField />
+          <AmbientWash />
           <div className="container hero-grid">
             <div>
-              <span className="kicker">
-                <span className="kicker-dot" />
-                Specialists, not generalists
-              </span>
               <h1>
                 Hire n8n developers who have <em>already shipped it</em>.
               </h1>
@@ -98,7 +94,6 @@ export default async function Home() {
               <div className="hero-panel">
                 <div className="hero-panel-top">
                   <strong>Available this week</strong>
-                  <span className="status status-success">Live directory</span>
                 </div>
                 <div className="mini-search">
                   <Search size={16} />

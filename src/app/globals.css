@@ -248,8 +248,10 @@ h1, h2, h3 {
   border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
-/* The field sits under the hero content and never intercepts a click. */
-.node-field {
+/* Scoped to the hero. As a child it paints above its parent's own background,
+   so nothing else has to become see-through for it. Never takes a pointer
+   event, and strength lives in the stroke alphas rather than here. */
+.ambient-wash {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -259,6 +261,27 @@ h1, h2, h3 {
 }
 
 .hero > .container { position: relative; z-index: 1; }
+
+/* The rise is deliberately small. `.is-revealed` is also what an element gets
+   when it is already on screen at load, so nothing waits on a scroll that has
+   already happened. */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.reveal.is-revealed,
+.is-revealed {
+  opacity: 1;
+  transform: none;
+  transition: opacity 620ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
+  .reveal.is-revealed, .is-revealed { transition: none; }
+}
 
 .hero-grid { display: grid; grid-template-columns: 1.06fr 0.94fr; gap: 64px; align-items: center; }
 
