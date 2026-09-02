@@ -11,10 +11,13 @@ type NavItem = [label: string, href: string, Icon: typeof LayoutDashboard];
 export function DashboardShell({
   session,
   unread = 0,
+  needsShowcase = false,
   children,
 }: {
   session: SessionUser;
   unread?: number;
+  /** An expert with nothing in the directory to judge. */
+  needsShowcase?: boolean;
   children: React.ReactNode;
 }) {
   const client = session.role === "client";
@@ -51,6 +54,15 @@ export function DashboardShell({
               <Icon size={18} />
               <span>{label}</span>
               {label === "Notifications" && unread > 0 && <span className="nav-badge">{unread}</span>}
+              {label === "Showcases" && needsShowcase && (
+                <span
+                  className="nav-badge nav-badge-alert"
+                  title="Add at least one showcase — reviewers need work to judge."
+                  aria-label="Action needed: add a showcase"
+                >
+                  !
+                </span>
+              )}
               <ChevronRight className="side-chevron" size={15} />
             </Link>
           ))}

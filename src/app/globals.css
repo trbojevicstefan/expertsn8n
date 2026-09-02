@@ -1528,6 +1528,12 @@ h1, h2, h3 {
   font-weight: 700;
   text-align: center;
 }
+.nav-badge-alert {
+  background: var(--danger);
+  font-weight: 800;
+  padding: 1px 7px;
+}
+
 .side-nav a .nav-badge + .side-chevron { display: none; }
 
 /* ---------- notification list ---------- */

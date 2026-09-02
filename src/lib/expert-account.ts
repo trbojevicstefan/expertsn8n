@@ -95,6 +95,21 @@ export function expertProfileGaps(
   ];
 }
 
+/**
+ * A showcase is what a reviewer actually judges, and only two experts in the
+ * marketplace have ever added one -- so the sidebar has to say so rather than
+ * waiting for a rejection to explain it.
+ */
+export async function expertNeedsShowcase(uid: string): Promise<boolean> {
+  if (!firebaseAdminConfigured || !uid) return false;
+  const db = adminDb();
+  const expertId = (await db.collection("users").doc(uid).get()).data()?.expertId;
+  if (typeof expertId !== "string" || !expertId) return false;
+
+  const snap = await db.collection("expertShowcases").where("expertId", "==", expertId).limit(1).get();
+  return snap.empty;
+}
+
 /** Percentage of the required public-facing fields that are filled in. */
 export function completeness(profile: ExpertProfile): number {
   return completenessDetail(profile).pct;
