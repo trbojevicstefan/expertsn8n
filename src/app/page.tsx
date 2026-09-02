@@ -13,6 +13,7 @@ import {
 import { listPublishedExperts, marketplaceStats } from "@/lib/data";
 import { faqs } from "@/lib/site-content";
 import { StructuredData } from "@/components/structured-data";
+import { NodeField } from "@/components/node-field";
 
 // The featured strip reads live profiles, so the page cannot be frozen at build
 // time (where Firebase Admin credentials do not exist and demo data would be
@@ -61,6 +62,7 @@ export default async function Home() {
       <SiteHeader />
       <main>
         <section className="hero">
+          <NodeField />
           <div className="container hero-grid">
             <div>
               <span className="kicker">

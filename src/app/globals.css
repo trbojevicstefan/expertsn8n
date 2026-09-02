@@ -240,6 +240,7 @@ h1, h2, h3 {
 /* ---------- hero ---------- */
 
 .hero {
+  position: relative;
   padding: 78px 0 64px;
   background:
     radial-gradient(ellipse 60% 50% at 82% 8%, rgba(201, 69, 43, 0.055) 0%, rgba(201, 69, 43, 0) 70%),
@@ -247,6 +248,18 @@ h1, h2, h3 {
   border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
+/* The field sits under the hero content and never intercepts a click. */
+.node-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero > .container { position: relative; z-index: 1; }
+
 .hero-grid { display: grid; grid-template-columns: 1.06fr 0.94fr; gap: 64px; align-items: center; }
 
 .kicker {
