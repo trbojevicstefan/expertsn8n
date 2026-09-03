@@ -37,6 +37,9 @@ export async function POST(req: Request) {
 
   for (const snap of snaps) {
     if (!snap.exists) continue;
+    // A draft has not been handed in, so it is not a reviewer's to decide on --
+    // and a bulk action is exactly where one would slip through unnoticed.
+    if ((snap.data() || {}).reviewState === "DRAFT") continue;
     batch.set(
       snap.ref,
       {

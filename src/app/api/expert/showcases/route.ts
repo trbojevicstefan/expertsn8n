@@ -4,7 +4,6 @@ import { getSession } from "@/lib/auth/server";
 import { adminDb, adminStorage, firebaseAdminConfigured } from "@/lib/firebase/admin";
 import { assertNoOffPlatformContact } from "@/lib/contact-guard";
 import { describeZodIssues } from "@/lib/validation";
-import { notifyAdmins } from "@/lib/notifications";
 import { syncMarketplaceUser } from "@/lib/customerio";
 
 const schema = z.object({
@@ -60,24 +59,18 @@ export async function POST(req: Request) {
     outcome: input.outcome,
     integrations: input.integrations,
     complexity: input.complexity,
-    // Showcases are what the directory treats as evidence, so they are only
-    // publicly visible once a reviewer has approved them.
-    reviewState: "PENDING",
+    // Written down, not handed in. A showcase is evidence, and evidence with
+    // no workflow export or screenshot behind it wastes a reviewer's pass and
+    // comes back asking for exactly that. It reaches the queue from the submit
+    // route, once the files are attached.
+    reviewState: "DRAFT",
     createdAt: nowIso,
     updatedAt: nowIso,
   });
 
-  const profile = await adminDb().collection("expertProfiles").doc(expertId).get();
-  await notifyAdmins({
-    type: "SHOWCASE_SUBMITTED",
-    title: `${(profile.data() || {}).name || "An expert"} submitted a showcase`,
-    body: input.title,
-    href: `/admin/experts/${expertId}`,
-    expertId,
-  });
-  await syncMarketplaceUser(session.uid, "expert_showcase_submitted");
+  await syncMarketplaceUser(session.uid, "expert_showcase_drafted");
 
-  return NextResponse.json({ id: ref.id, ok: true }, { status: 201 });
+  return NextResponse.json({ id: ref.id, ok: true, reviewState: "DRAFT" }, { status: 201 });
 }
 
 export async function DELETE(req: Request) {

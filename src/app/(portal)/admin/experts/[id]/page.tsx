@@ -201,8 +201,12 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
           <section className="panel card">
             <div className="panel-head">
               <h2>Showcases</h2>
+              {/* Drafts are excluded: approving one would publish work its author
+                  has not finished, let alone handed in. */}
               <ShowcaseBulkApprove
-                ids={showcases.filter((s) => (s.reviewState || "PENDING") !== "APPROVED").map((s) => s.id)}
+                ids={showcases
+                  .filter((s) => (s.reviewState || "PENDING") === "PENDING")
+                  .map((s) => s.id)}
               />
             </div>
             {showcases.length === 0 ? (
@@ -216,10 +220,19 @@ export default async function AdminExpertReview({ params }: { params: Promise<{ 
                 {showcases.map((s) => (
                   <article className="showcase-card" key={s.id}>
                     <div className="sc-head">
-                      <StatusBadge tone={s.reviewState === "APPROVED" ? "success" : s.reviewState === "REJECTED" ? "danger" : "warning"}>
-                        {s.reviewState || "PENDING"}
+                      <StatusBadge
+                        tone={
+                          s.reviewState === "APPROVED" ? "success"
+                            : s.reviewState === "REJECTED" ? "danger"
+                            : s.reviewState === "DRAFT" ? "neutral"
+                            : "warning"
+                        }
+                      >
+                        {s.reviewState === "DRAFT" ? "DRAFT — not submitted" : s.reviewState || "PENDING"}
                       </StatusBadge>
-                      <ShowcaseReviewActions showcaseId={s.id} reviewState={s.reviewState || "PENDING"} />
+                      {s.reviewState !== "DRAFT" && (
+                        <ShowcaseReviewActions showcaseId={s.id} reviewState={s.reviewState || "PENDING"} />
+                      )}
                     </div>
                     <h3>{s.title}</h3>
                     <p>{s.summary}</p>

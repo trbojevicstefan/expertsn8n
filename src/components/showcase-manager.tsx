@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileJson, ImagePlus, Paperclip, Plus, Trash2, Workflow, X } from "lucide-react";
+import { Check, FileJson, ImagePlus, Paperclip, Plus, Send, Trash2, Workflow, X } from "lucide-react";
 import { ShowcaseAttachments } from "./showcase-attachments";
 import { ref, uploadBytes } from "firebase/storage";
 import { firebaseStorage } from "@/lib/firebase/client";
@@ -50,7 +50,7 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
           id: data.id, expertId: "", title: form.title, summary: form.summary,
           outcome: form.outcome, complexity: form.complexity,
           integrations: form.integrations.split(",").map((s) => s.trim()).filter(Boolean),
-          reviewState: "PENDING",
+          reviewState: "DRAFT",
         },
         ...prev,
       ]);
@@ -111,6 +111,22 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
     }
   };
 
+  const sendForReview = async (id: string) => {
+    setError("");
+    setBusy(`send-${id}`);
+    try {
+      const res = await fetch(`/api/expert/showcases/${id}/submit`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not send it for review.");
+      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, reviewState: "PENDING" } : x)));
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send it for review.");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const remove = async (id: string) => {
     setBusy(`del-${id}`);
     try {
@@ -141,10 +157,12 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
       {open && (
         <form className="form-card card" onSubmit={submit} style={{ marginBottom: 18 }}>
           <div className="form-section">
-            <h2>New showcase</h2>
+            <h2>New showcase &mdash; step 1 of 2</h2>
             <p>
               A reviewer reads this as evidence. Describe how it handles failure, not just what it does —
-              that is the most common reason a showcase comes back.
+              that is the most common reason a showcase comes back. Once this is saved, step 2 is
+              attaching your exported n8n workflow JSON and a screenshot; nothing goes to review
+              until then.
             </p>
             <div className="field">
               <label htmlFor="sc-title">Title</label>
@@ -194,7 +212,7 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
           </div>
           {error && <div className="error-box">{error}</div>}
           <button className="button button-primary" disabled={busy === "save"} type="submit">
-            {busy === "save" ? "Saving…" : "Submit for review"}
+            {busy === "save" ? "Saving…" : "Save and continue to step 2"}
           </button>
         </form>
       )}
@@ -205,15 +223,17 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
         <EmptyState
           icon={<Workflow size={22} strokeWidth={1.9} />}
           title="No showcases yet"
-          body="A showcase is what gets a profile taken seriously: the business problem, the architecture, the integrations, how failures are handled and what changed for the client. Create one first, then attach screenshots and your exported n8n workflow JSON to it. At least one showcase is required before a profile can be verified."
+          body="A showcase is what gets a profile taken seriously: the business problem, the architecture, the integrations, how failures are handled and what changed for the client. It takes two steps — write it up, then attach your exported n8n workflow JSON and a screenshot. It only goes to review once both are there. At least one showcase is required before a profile can be verified."
         />
       ) : (
         <div className="showcase-grid">
           {items.map((s) => (
             <article className="showcase-card card" key={s.id}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-                <StatusBadge tone={s.reviewState === "APPROVED" ? "success" : "warning"}>
-                  {s.reviewState || "PENDING"}
+                <StatusBadge
+                  tone={s.reviewState === "APPROVED" ? "success" : s.reviewState === "DRAFT" ? "neutral" : "warning"}
+                >
+                  {s.reviewState === "DRAFT" ? "DRAFT — STEP 2" : s.reviewState || "PENDING"}
                 </StatusBadge>
                 <button
                   type="button"
@@ -231,6 +251,14 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
               {s.integrations?.length > 0 && (
                 <div className="chip-row" style={{ marginTop: 12 }}>
                   {s.integrations.map((x) => <span className="chip" key={x}>{x}</span>)}
+                </div>
+              )}
+
+              {s.reviewState === "DRAFT" && (
+                <div className="notice">
+                  <strong>Step 2 of 2 — attach the evidence.</strong>
+                  A reviewer judges the workflow itself and what it looked like running, so this stays
+                  a draft until both are here. Nobody sees it in the meantime.
                 </div>
               )}
 
@@ -288,6 +316,35 @@ export function ShowcaseManager({ initial, uid }: { initial: Item[]; uid: string
                   reviewers. An n8n export is summarised to its structure &mdash; parameter values and
                   credentials from the file are never stored or shown.
                 </span>
+
+                {s.reviewState === "DRAFT" && (() => {
+                  const attachments = s.attachments || [];
+                  const hasWorkflow = attachments.some((a) => a.kind === "workflow");
+                  const hasImage = attachments.some((a) => a.kind === "image");
+                  return (
+                    <div className="submit-gate">
+                      <ul className="submit-checklist">
+                        <li className={hasWorkflow ? "done" : ""}>
+                          {hasWorkflow ? <Check size={13} strokeWidth={2.6} /> : <span className="dot" />}
+                          Exported n8n workflow JSON
+                        </li>
+                        <li className={hasImage ? "done" : ""}>
+                          {hasImage ? <Check size={13} strokeWidth={2.6} /> : <span className="dot" />}
+                          At least one screenshot
+                        </li>
+                      </ul>
+                      <button
+                        type="button"
+                        className="button button-primary"
+                        disabled={!hasWorkflow || !hasImage || busy === `send-${s.id}`}
+                        onClick={() => sendForReview(s.id)}
+                      >
+                        <Send size={15} strokeWidth={2.2} />
+                        {busy === `send-${s.id}` ? "Sending…" : "Send for review"}
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             </article>
           ))}

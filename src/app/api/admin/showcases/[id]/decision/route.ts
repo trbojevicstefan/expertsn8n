@@ -38,6 +38,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!snap.exists) return NextResponse.json({ error: "Showcase not found." }, { status: 404 });
 
   const showcase = snap.data() || {};
+  // The UI hides the controls for a draft; this is what actually stops one
+  // being approved before its author has handed it in.
+  if (showcase.reviewState === "DRAFT") {
+    return NextResponse.json(
+      { error: "This showcase is still a draft and has not been submitted for review." },
+      { status: 409 },
+    );
+  }
+
   const nowIso = new Date().toISOString();
 
   await ref.set(

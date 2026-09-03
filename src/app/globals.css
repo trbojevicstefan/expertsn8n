@@ -824,6 +824,35 @@ h1, h2, h3 {
 .profile-about h2, .showcase-section h2 { font-size: 21px; }
 .profile-about p { color: var(--ink-500); line-height: 1.75; }
 .showcase-section { padding: 28px; }
+/* The hand-in at the end of a draft: what is still missing, then the button. */
+.submit-gate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.submit-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.submit-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.7px;
+  color: var(--ink-500);
+}
+.submit-checklist li.done { color: var(--trust); }
+.submit-checklist .dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--line-strong, #d9d2c7);
+  flex: 0 0 auto;
+}
+
 .showcase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .showcase-card { padding: 20px; background: var(--warm-50); border: 1px solid var(--line); border-radius: 12px; }
 .showcase-card h3 { font-size: 16px; margin: 10px 0 7px; }
