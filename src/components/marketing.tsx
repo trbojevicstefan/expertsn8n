@@ -65,12 +65,14 @@ export function TrustBar({ stats }: { stats: MarketplaceStats }) {
   );
 }
 
+import { BrandIcon } from "./brand-icon";
+
 export function LogoStrip() {
   return (
     <div className="logo-strip">
       <div className="container">
         <span className="strip-label">Workflows shipped across</span>
-        {integrationLogos.map((name) => <b key={name}>{name}</b>)}
+        {integrationLogos.map((name) => <BrandIcon key={name} name={name} />)}
       </div>
     </div>
   );

@@ -394,13 +394,32 @@ h1, h2, h3 {
 .logo-strip .container {
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 26px;
   justify-content: center;
   color: var(--muted);
   font-weight: 650;
   font-size: 13px;
   flex-wrap: wrap;
 }
+/* Marks and wordmarks share one rhythm, so a strip that is part icon and part
+   text still reads as one row rather than two treatments. */
+.logo-strip .brand-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-500);
+  opacity: 0.72;
+  transition: opacity 200ms ease, color 200ms ease;
+}
+.logo-strip .brand-icon:hover { opacity: 1; color: var(--ink); }
+
+.logo-strip .brand-wordmark {
+  color: var(--ink-500);
+  font-weight: 650;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  opacity: 0.82;
+}
+
 .logo-strip b { color: var(--ink-700); font-weight: 650; }
 .logo-strip .strip-label {
   color: var(--ink-400);

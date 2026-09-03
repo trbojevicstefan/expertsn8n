@@ -162,6 +162,6 @@ export const faqs = [
 ];
 
 export const integrationLogos = [
-  "HubSpot", "Salesforce", "OpenAI", "Anthropic", "Slack", "PostgreSQL",
+  "n8n", "HubSpot", "Salesforce", "OpenAI", "Anthropic", "Slack", "PostgreSQL",
   "Stripe", "Google Workspace", "Notion", "Supabase", "AWS", "Airtable",
 ];
