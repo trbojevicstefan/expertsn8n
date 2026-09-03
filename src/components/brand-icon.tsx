@@ -8,15 +8,15 @@ import {
   siStripe,
   siSupabase,
 } from "simple-icons";
+import { RETIRED_MARKS } from "./retired-brand-marks";
 
 /**
  * Official brand marks, drawn from Simple Icons (CC0) rather than redrawn by
  * hand, so each one is the real shape at any size.
  *
- * Five of the names in the strip are deliberately absent: Salesforce, OpenAI,
- * Slack, Google Workspace and AWS have all been removed from that set at their
- * owners' request. Approximating a trademark from memory is worse than not
- * drawing it, so those fall through to a wordmark set in the same rhythm.
+ * Five of them no longer ship in the current release and come from a pinned
+ * copy instead; see `retired-brand-marks`. Anything with no mark at all still
+ * falls through to a wordmark rather than an approximation.
  */
 const MARKS: Record<string, { path: string; title: string }> = {
   n8n: siN8n,
@@ -27,6 +27,7 @@ const MARKS: Record<string, { path: string; title: string }> = {
   Notion: siNotion,
   Supabase: siSupabase,
   Airtable: siAirtable,
+  ...RETIRED_MARKS,
 };
 
 export function BrandIcon({ name, size = 21 }: { name: string; size?: number }) {
