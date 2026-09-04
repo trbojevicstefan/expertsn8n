@@ -6,6 +6,10 @@ import { ref, uploadBytes } from "firebase/storage";
 import { AlertTriangle, CheckCircle2, FileText, Plus, Send, Trash2, Upload, UserRound } from "lucide-react";
 import { firebaseStorage } from "@/lib/firebase/client";
 import type { ExpertDocument, ExpertProfile } from "@/lib/types";
+import {
+  DOCUMENT_HINT, DOCUMENT_MAX_BYTES, DOCUMENT_TYPES, PHOTO_HINT, PHOTO_MAX_BYTES, PHOTO_TYPES,
+  describeUploadError, rejectionReason, resolveContentType,
+} from "@/lib/upload-types";
 import { AVAILABILITY_OPTIONS, ENGAGEMENT_OPTIONS } from "@/lib/expert-availability";
 
 /** Kept in step with the schema the update route enforces. */
@@ -123,13 +127,23 @@ export function ProfileEditor({
     if (!firebaseStorage) return setMsg({ tone: "err", text: "Storage is not configured." });
     setBusy("photo");
     setMsg(null);
+    // Checked here so a refusal explains itself. The rules answer an
+    // unacceptable type with a permissions error, which reads as if the file
+    // belonged to someone else.
+    const rejected = rejectionReason(file, PHOTO_TYPES, PHOTO_MAX_BYTES, PHOTO_HINT);
+    if (rejected) {
+      setBusy("");
+      return setMsg({ tone: "err", text: rejected });
+    }
+
     try {
+      const contentType = resolveContentType(file);
       const path = `private/experts/${uid}/photo/${Date.now()}-${safeName(file.name)}`;
-      await uploadBytes(ref(firebaseStorage, path), file, { contentType: file.type });
+      await uploadBytes(ref(firebaseStorage, path), file, { contentType });
       const res = await fetch("/api/expert/photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storagePath: path, contentType: file.type }),
+        body: JSON.stringify({ storagePath: path, contentType }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not publish the photo.");
@@ -137,7 +151,7 @@ export function ProfileEditor({
       setMsg({ tone: "ok", text: "Photo published to your profile." });
       router.refresh();
     } catch (err) {
-      setMsg({ tone: "err", text: err instanceof Error ? err.message : "Photo upload failed." });
+      setMsg({ tone: "err", text: describeUploadError(err, PHOTO_HINT) });
     } finally {
       setBusy("");
     }
@@ -147,9 +161,20 @@ export function ProfileEditor({
     if (!firebaseStorage) return setMsg({ tone: "err", text: "Storage is not configured." });
     setBusy("doc");
     setMsg(null);
+    const rejected = rejectionReason(file, DOCUMENT_TYPES, DOCUMENT_MAX_BYTES, DOCUMENT_HINT);
+    if (rejected) {
+      setBusy("");
+      return setMsg({ tone: "err", text: rejected });
+    }
+
     try {
+      // One resolved value for both the upload and the record: the server
+      // compares what was reported against the stored object's metadata, so
+      // sending the raw `file.type` to one and a fallback to the other put
+      // them out of step whenever the browser gave no type at all.
+      const contentType = resolveContentType(file);
       const path = `private/experts/${uid}/documents/${docKind}/${Date.now()}-${safeName(file.name)}`;
-      await uploadBytes(ref(firebaseStorage, path), file, { contentType: file.type });
+      await uploadBytes(ref(firebaseStorage, path), file, { contentType });
       const res = await fetch("/api/expert/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -157,7 +182,7 @@ export function ProfileEditor({
           kind: docKind,
           fileName: file.name,
           storagePath: path,
-          contentType: file.type || "application/octet-stream",
+          contentType,
           sizeBytes: file.size,
         }),
       });
@@ -166,7 +191,7 @@ export function ProfileEditor({
       setDocuments((d) => [
         {
           id: data.id, expertId: profile.id, kind: docKind as ExpertDocument["kind"],
-          fileName: file.name, storagePath: path, contentType: file.type,
+          fileName: file.name, storagePath: path, contentType: resolveContentType(file),
           sizeBytes: file.size, uploadedAt: new Date().toISOString(), reviewState: "PENDING",
         },
         ...d,
@@ -174,7 +199,7 @@ export function ProfileEditor({
       setMsg({ tone: "ok", text: `${file.name} uploaded.` });
       router.refresh();
     } catch (err) {
-      setMsg({ tone: "err", text: err instanceof Error ? err.message : "Upload failed." });
+      setMsg({ tone: "err", text: describeUploadError(err, DOCUMENT_HINT) });
     } finally {
       setBusy("");
     }
