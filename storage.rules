@@ -29,7 +29,10 @@ service firebase.storage {
         && request.resource.size < 20 * 1024 * 1024
         && (
           request.resource.contentType == 'application/pdf'
-          || request.resource.contentType.matches('image/(jpeg|png|webp)')
+          // HEIC is what an iPhone produces by default, so refusing it turned
+          // a phone camera into a dead end. Accepted for documents, which are
+          // downloaded rather than rendered in a page.
+          || request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)')
           || request.resource.contentType == 'application/msword'
           || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         );

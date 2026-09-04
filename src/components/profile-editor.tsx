@@ -32,7 +32,7 @@ const DOC_KINDS = [
   { value: "other", label: "Other" },
 ] as const;
 
-const ACCEPT = ".pdf,.doc,.docx,image/jpeg,image/png,image/webp";
+const ACCEPT = ".pdf,.doc,.docx,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif";
 
 function safeName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);

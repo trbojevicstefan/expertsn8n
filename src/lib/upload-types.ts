@@ -11,6 +11,11 @@ export const DOCUMENT_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  // An iPhone shoots HEIC unless told otherwise. Documents are downloaded, so
+  // a format browsers cannot render is no obstacle here -- unlike the profile
+  // photo, which is served straight into an <img> and stays JPG/PNG/WebP.
+  "image/heic",
+  "image/heif",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ] as const;
@@ -32,6 +37,8 @@ const BY_EXTENSION: Record<string, string> = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
   doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
@@ -67,7 +74,8 @@ export function rejectionReason(
   return null;
 }
 
-export const DOCUMENT_HINT = "Documents must be a PDF, a Word file, or a JPG, PNG or WebP image";
+export const DOCUMENT_HINT =
+  "Documents must be a PDF, a Word file, or an image (JPG, PNG, WebP or HEIC)";
 export const PHOTO_HINT = "A profile photo must be a JPG, PNG or WebP image";
 
 /**
